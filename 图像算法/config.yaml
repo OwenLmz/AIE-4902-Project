@@ -1,0 +1,83 @@
+paths:
+  model: models/yolov8n.pt
+  images_dir: images
+  outputs_dir: outputs
+
+runtime:
+  device: cpu
+  image_size: 640
+  confidence: 0.25
+  sample_interval_min: 30
+  suspect_threshold_min: 20
+  redis_ttl_sec: 120
+
+model:
+  auto_download: true
+  person_classes:
+    - person
+  object_classes:
+    - backpack
+    - handbag
+    - suitcase
+    - book
+    - laptop
+    - cell phone
+    - bottle
+    - cup
+    - umbrella
+
+roi:
+  overlap_threshold: 0.30
+
+mysql:
+  host: "${MYSQL_HOST:localhost}"
+  port: "${MYSQL_PORT:3306}"
+  user: "${MYSQL_USER:root}"
+  password: "${MYSQL_PASSWORD:}"
+  database: "${MYSQL_DATABASE:smart_campus}"
+  charset: utf8mb4
+
+redis:
+  host: "${REDIS_HOST:localhost}"
+  port: "${REDIS_PORT:6379}"
+  db: "${REDIS_DB:0}"
+  decode_responses: true
+
+fallback_seats:
+  - seat_id: F3-A01
+    floor: 3
+    zone: A
+    camera_id: CAM-3A
+    roi_x1: 120
+    roi_y1: 80
+    roi_x2: 280
+    roi_y2: 200
+    is_active: 1
+  - seat_id: F3-A02
+    floor: 3
+    zone: A
+    camera_id: CAM-3A
+    roi_x1: 290
+    roi_y1: 80
+    roi_x2: 450
+    roi_y2: 200
+    is_active: 1
+  - seat_id: F3-A03
+    floor: 3
+    zone: A
+    camera_id: CAM-3A
+    roi_x1: 120
+    roi_y1: 210
+    roi_x2: 280
+    roi_y2: 330
+    is_active: 1
+  - seat_id: F3-A04
+    floor: 3
+    zone: A
+    camera_id: CAM-3A
+    roi_x1: 290
+    roi_y1: 210
+    roi_x2: 450
+    roi_y2: 330
+    is_active: 1
+

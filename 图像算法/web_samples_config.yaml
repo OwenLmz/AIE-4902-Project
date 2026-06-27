@@ -1,0 +1,74 @@
+paths:
+  model: models/yolov8n.pt
+  images_dir: images/web_test
+  outputs_dir: outputs/web_samples
+
+runtime:
+  device: cpu
+  image_size: 640
+  confidence: 0.20
+  sample_interval_min: 30
+  suspect_threshold_min: 20
+  redis_ttl_sec: 120
+
+model:
+  auto_download: true
+  person_classes:
+    - person
+  object_classes:
+    - backpack
+    - handbag
+    - suitcase
+    - book
+    - laptop
+    - cell phone
+    - bottle
+    - cup
+    - umbrella
+
+roi:
+  overlap_threshold: 0.30
+
+mysql:
+  host: "${MYSQL_HOST:localhost}"
+  port: "${MYSQL_PORT:3306}"
+  user: "${MYSQL_USER:root}"
+  password: "${MYSQL_PASSWORD:}"
+  database: "${MYSQL_DATABASE:smart_campus}"
+  charset: utf8mb4
+
+redis:
+  host: "${REDIS_HOST:localhost}"
+  port: "${REDIS_PORT:6379}"
+  db: "${REDIS_DB:0}"
+  decode_responses: true
+
+fallback_seats:
+  - seat_id: WEB-FREE-01
+    floor: 3
+    zone: WEB
+    camera_id: WEB-S3
+    roi_x1: 0
+    roi_y1: 160
+    roi_x2: 220
+    roi_y2: 270
+    is_active: 1
+  - seat_id: WEB-SUSPECT-01
+    floor: 3
+    zone: WEB
+    camera_id: WEB-S4
+    roi_x1: 90
+    roi_y1: 140
+    roi_x2: 170
+    roi_y2: 245
+    is_active: 1
+  - seat_id: WEB-OCCUPIED-01
+    floor: 3
+    zone: WEB
+    camera_id: WEB-S5
+    roi_x1: 65
+    roi_y1: 115
+    roi_x2: 190
+    roi_y2: 260
+    is_active: 1
+

@@ -1,0 +1,23 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Local virtual environment created outside this folder by setup.ps1.
+../.image_algo_venv/
+
+# Model weights are downloaded by setup.ps1 and should not be committed.
+models/*.pt
+
+# Local/private/third-party image samples should be shared separately or downloaded.
+images/**/*.jpg
+images/**/*.jpeg
+images/**/*.png
+!images/**/.gitkeep
+
+# Generated outputs are reproducible and should not be committed.
+outputs/**
+!outputs/.gitkeep
