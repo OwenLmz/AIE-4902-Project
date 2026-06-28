@@ -1,0 +1,8 @@
+{
+  "updated_at": "2026-06-25T15:30:00",
+  "seats": [
+    {"seat_id": "F3-A01", "status": "FREE"},
+    {"seat_id": "F3-A01", "status": "OCCUPIED"}
+  ]
+}
+

@@ -1,0 +1,29 @@
+\section{Requirements and Success Criteria}
+
+The system requirements are organized around the three implementation areas of the project: data structure, frontend, and image algorithm. Together, these modules should support a reliable flow from seat configuration and visual input to user-facing seat availability information.
+
+\subsection{Functional Requirements}
+
+\begin{longtable}{|p{0.14\linewidth}|p{0.45\linewidth}|p{0.31\linewidth}|}
+\hline
+\textbf{Module} & \textbf{Functional requirement} & \textbf{Success criterion} \\
+\hline
+Data structure & Define database tables, simulated records, and module interface fields for seat status, users, logs, and administrative actions. & SQL scripts build the required tables; simulation scripts generate records; fields align with other modules. \\
+\hline
+Frontend & Present seat status, basic user workflows, and visual feedback for available, occupied, and suspected seats. & Implemented screens or prototypes show core workflows with sample data or backend API responses. \\
+\hline
+Image algorithm & Convert camera images or sampled video frames into seat-level states using object detection, ROI matching, and a state machine. & The module outputs \texttt{seat\_id}, \texttt{has\_person}, \texttt{has\_object}, \texttt{status}, and \texttt{suspect\_duration}; it can write CSV and is ready to write Redis/MySQL when local services are configured. \\
+\hline
+Integration & Use shared fields and repository documentation so modules can be connected later. & README files describe dependencies, commands, outputs, and known limitations. \\
+\hline
+\end{longtable}
+
+\subsection{Non-Functional Requirements}
+
+\begin{itemize}
+  \item \textbf{Reproducibility:} teammates should be able to clone the repository and follow documented setup steps.
+  \item \textbf{Modularity:} each team member's work should remain understandable and testable as a separate module.
+  \item \textbf{Security and privacy:} no passwords, API keys, personal data, or raw confidential library data should be committed.
+  \item \textbf{CPU compatibility for midterm:} the image algorithm baseline should run on a normal laptop CPU.
+  \item \textbf{Evidence-based progress:} claims should be supported by code, screenshots, tests, sample outputs, or recorded demonstrations.
+\end{itemize}

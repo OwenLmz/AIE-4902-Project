@@ -1,0 +1,55 @@
+{
+  "updated_at": "2026-06-25T15:09:19",
+  "capacity": 220,
+  "latest": {
+    "recorded_at": "2026-06-23 10:30:00",
+    "enter_count": 16,
+    "exit_count": 22,
+    "total_in_library": 139,
+    "crowd_level": "medium"
+  },
+  "history": [
+    {
+      "recorded_at": "2026-06-23 08:00:00",
+      "enter_count": 38,
+      "exit_count": 2,
+      "total_in_library": 36,
+      "crowd_level": "low"
+    },
+    {
+      "recorded_at": "2026-06-23 08:30:00",
+      "enter_count": 46,
+      "exit_count": 5,
+      "total_in_library": 77,
+      "crowd_level": "low"
+    },
+    {
+      "recorded_at": "2026-06-23 09:00:00",
+      "enter_count": 52,
+      "exit_count": 8,
+      "total_in_library": 121,
+      "crowd_level": "medium"
+    },
+    {
+      "recorded_at": "2026-06-23 09:30:00",
+      "enter_count": 28,
+      "exit_count": 12,
+      "total_in_library": 137,
+      "crowd_level": "medium"
+    },
+    {
+      "recorded_at": "2026-06-23 10:00:00",
+      "enter_count": 18,
+      "exit_count": 10,
+      "total_in_library": 145,
+      "crowd_level": "medium"
+    },
+    {
+      "recorded_at": "2026-06-23 10:30:00",
+      "enter_count": 16,
+      "exit_count": 22,
+      "total_in_library": 139,
+      "crowd_level": "medium"
+    }
+  ]
+}

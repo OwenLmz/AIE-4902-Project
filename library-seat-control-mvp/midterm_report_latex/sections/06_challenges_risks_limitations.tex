@@ -1,0 +1,28 @@
+\section{Challenges, Risks, and Limitations}
+
+\subsection{Shared Project Risks}
+
+\begin{itemize}
+  \item Real school library data may not be available before the midterm, so some validation must use simulated data or sample images.
+  \item Module integration depends on consistent field names and data formats across frontend, backend, database, and image algorithm work.
+  \item The final system must avoid committing passwords, API keys, personal data, or confidential images to the repository.
+  \item A live demo is not required for the midterm, but the submitted evidence must still make implemented work verifiable.
+\end{itemize}
+
+\subsection{Data Structure Risks}
+
+% Data structure teammate: add database-specific risks, such as schema changes,
+% import failures, data volume, indexing, or mismatch between simulated and real data.
+
+\subsection{Frontend Risks}
+
+% Frontend teammate: add UI/backend integration risks, browser compatibility,
+% incomplete workflows, API availability, or user experience limitations.
+
+\subsection{Image Algorithm Risks}
+
+The image algorithm module has three main limitations. First, the team does not yet have official school library video data with ground-truth labels. Therefore, the current module can be verified as a working pipeline, but not yet as a formally accurate model. Metrics such as precision, recall, and false-positive rate should be reported only after labeled real frames are collected.
+
+Second, ROI calibration is critical. If the ROI is too small, a real person or object may fall outside the seat area and be missed. If the ROI is too large, objects from neighboring seats may be assigned incorrectly. The long-term design should use one calibrated ROI per physical seat for each camera view, with optional refinements if a layout is especially complex.
+
+Third, YOLOv8n is a general-purpose COCO pre-trained model. It is lightweight and suitable for a CPU midterm baseline, but it is not specialized for library seat occupation. Final improvement may require threshold tuning, a larger detector, or fine-tuning with labeled library images.

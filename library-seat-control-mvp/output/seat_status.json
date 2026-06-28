@@ -1,0 +1,108 @@
+{
+  "updated_at": "2026-06-25T15:09:19",
+  "interval_minutes": 5,
+  "suspicious_threshold_minutes": 20,
+  "summary": {
+    "FREE": 1,
+    "OCCUPIED": 1,
+    "POSSIBLY_OCCUPIED": 0,
+    "SUSPICIOUS": 2
+  },
+  "seats": [
+    {
+      "seat_id": "F3-A01",
+      "floor": 3,
+      "zone": "A",
+      "has_person": false,
+      "has_object": true,
+      "status": "SUSPICIOUS",
+      "object_unattended_minutes": 40,
+      "suspect_duration": 40,
+      "detections": [
+        {
+          "id": "det-001",
+          "label": "laptop",
+          "category": "object",
+          "confidence": 0.91,
+          "bbox": [
+            78,
+            118,
+            154,
+            166
+          ]
+        },
+        {
+          "id": "det-002",
+          "label": "book",
+          "category": "object",
+          "confidence": 0.86,
+          "bbox": [
+            118,
+            162,
+            184,
+            204
+          ]
+        }
+      ]
+    },
+    {
+      "seat_id": "F3-A02",
+      "floor": 3,
+      "zone": "A",
+      "has_person": true,
+      "has_object": false,
+      "status": "OCCUPIED",
+      "object_unattended_minutes": 0,
+      "suspect_duration": 0,
+      "detections": [
+        {
+          "id": "det-003",
+          "label": "person",
+          "category": "person",
+          "confidence": 0.94,
+          "bbox": [
+            268,
+            68,
+            392,
+            232
+          ]
+        }
+      ]
+    },
+    {
+      "seat_id": "F3-A03",
+      "floor": 3,
+      "zone": "A",
+      "has_person": false,
+      "has_object": true,
+      "status": "SUSPICIOUS",
+      "object_unattended_minutes": 40,
+      "suspect_duration": 40,
+      "detections": [
+        {
+          "id": "det-004",
+          "label": "bottle",
+          "category": "object",
+          "confidence": 0.79,
+          "bbox": [
+            496,
+            128,
+            532,
+            190
+          ]
+        }
+      ]
+    },
+    {
+      "seat_id": "F3-A04",
+      "floor": 3,
+      "zone": "A",
+      "has_person": false,
+      "has_object": false,
+      "status": "FREE",
+      "object_unattended_minutes": 0,
+      "suspect_duration": 0,
+      "detections": []
+    }
+  ]
+}

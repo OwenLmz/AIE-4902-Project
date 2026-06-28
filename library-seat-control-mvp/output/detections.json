@@ -1,0 +1,55 @@
+{
+  "image": "src/data/sample_library.jpg",
+  "generated_at": "2026-06-25T15:09:19",
+  "source": "mock",
+  "detections": [
+    {
+      "id": "det-001",
+      "label": "laptop",
+      "category": "object",
+      "confidence": 0.91,
+      "bbox": [
+        78,
+        118,
+        154,
+        166
+      ]
+    },
+    {
+      "id": "det-002",
+      "label": "book",
+      "category": "object",
+      "confidence": 0.86,
+      "bbox": [
+        118,
+        162,
+        184,
+        204
+      ]
+    },
+    {
+      "id": "det-003",
+      "label": "person",
+      "category": "person",
+      "confidence": 0.94,
+      "bbox": [
+        268,
+        68,
+        392,
+        232
+      ]
+    },
+    {
+      "id": "det-004",
+      "label": "bottle",
+      "category": "object",
+      "confidence": 0.79,
+      "bbox": [
+        496,
+        128,
+        532,
+        190
+      ]
+    }
+  ]
+}

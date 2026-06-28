@@ -1,0 +1,37 @@
+{
+  "updated_at": "2026-06-25T15:30:00",
+  "seats": [
+    {
+      "seat_id": "F3-A01",
+      "floor": 3,
+      "zone": "A",
+      "status": "SUSPICIOUS",
+      "has_person": false,
+      "has_object": true,
+      "object_unattended_minutes": 25,
+      "updated_at": "2026-06-25T15:30:00"
+    },
+    {
+      "seat_id": "F3-A02",
+      "floor": 3,
+      "zone": "A",
+      "camera_id": "CAM-2",
+      "status": "POSSIBLY_OCCUPIED",
+      "has_person": false,
+      "has_object": true,
+      "suspect_duration": 12,
+      "updated_at": "2026-06-25T15:31:00"
+    },
+    {
+      "seat_id": "F3-A03",
+      "floor": 3,
+      "zone": "",
+      "status": "FREE",
+      "has_person": false,
+      "has_object": false,
+      "unattended_minutes": 0,
+      "updated_at": "2026-06-25T15:32:00"
+    }
+  ]
+}
+

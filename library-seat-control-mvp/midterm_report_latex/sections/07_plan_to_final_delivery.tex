@@ -1,0 +1,25 @@
+\section{Plan to Final Delivery}
+
+The remaining plan focuses on turning the current baseline modules into an integrated final prototype.
+
+\begin{longtable}{|p{0.18\linewidth}|p{0.42\linewidth}|p{0.25\linewidth}|}
+\hline
+\textbf{Area} & \textbf{Remaining task} & \textbf{Owner / dependency} \\
+\hline
+Data structure & Finalize schema, generated data, import script, and backend-facing data format. & Data structure member; backend/frontend agreement. \\
+\hline
+Frontend & Complete UI screens, connect to backend/API or mock endpoint, and prepare screenshots/video evidence. & Frontend member; depends on API fields. \\
+\hline
+Image algorithm & Connect frame extraction from videos or camera source; calibrate ROI for real seats; run Redis/MySQL integration tests. & Image algorithm member; depends on camera/data availability. \\
+\hline
+Evaluation & Collect representative real library frames, label seat status, and evaluate false positives/false negatives. & Whole team; depends on data access. \\
+\hline
+Integration & Verify end-to-end flow from image output to database/cache to frontend display. & Whole team. \\
+\hline
+Final report/demo & Prepare final evidence, screenshots, video, and updated contribution/AI-use record. & Whole team. \\
+\hline
+\end{longtable}
+
+For the image algorithm module, the most important final-delivery step is moving from local image folders to sampled video frames. The core algorithm does not need to change: a video stream can be sampled into frames, and each frame can be processed by the same YOLO + ROI + state-machine pipeline. This keeps the current implementation relevant for the final system.
+
+% Teammates should replace owner/dependency placeholders with real names and dates.

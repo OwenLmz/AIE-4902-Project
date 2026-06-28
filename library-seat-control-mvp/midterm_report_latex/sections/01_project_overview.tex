@@ -1,0 +1,29 @@
+\section{Project Overview and Problem Statement}
+
+This project aims to support library seat management in a Smart Campus environment. The target users include students looking for available seats, library administrators monitoring seat usage, and system maintainers responsible for integrating camera, database, backend, and frontend components. The core problem is that library seat availability is difficult to monitor manually, especially when students leave belongings on desks for a long time without being present. This can cause inefficient seat usage and poor user experience.
+
+The proposed system combines a frontend interface, a data structure and storage layer, and an image algorithm module. The frontend presents seat availability and relevant interactions to users. The data structure module defines the MySQL schema, simulated data, Redis interface, and records required by the system. The image algorithm module processes library camera frames and converts visual detections into structured seat states.
+
+The current prototype focuses on three connected parts: a structured data layer, a frontend interface, and a computer vision module. The data layer defines how seat configurations and status logs are stored. The frontend presents seat availability to users. The image algorithm module processes camera frames or local images and outputs structured seat states.
+
+\subsection{Expected Value}
+
+\begin{itemize}
+  \item For students: reduce the uncertainty of finding available library seats.
+  \item For library staff: provide structured evidence of seat status and potential seat-holding behavior.
+  \item For the project team: establish a reproducible baseline that can be improved with real library data.
+\end{itemize}
+
+\subsection{Current Project Scope}
+
+The midterm deliverable focuses on the following scope:
+
+\begin{itemize}
+  \item a shared code repository with readable project structure and README files;
+  \item implemented baseline modules for data structure, frontend, and image algorithm work;
+  \item screenshots, test results, sample outputs, or other evidence of existing work;
+  \item clear module ownership and a feasible plan for the final deadline;
+  \item no exposure of passwords, API keys, personal data, or confidential raw data.
+\end{itemize}
+
+% Teammates may refine this overview with exact stakeholder details if needed.

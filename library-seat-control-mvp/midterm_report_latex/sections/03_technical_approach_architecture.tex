@@ -1,0 +1,56 @@
+\section{Technical Approach and Architecture}
+
+The system is designed as a modular pipeline. The data structure module provides persistent storage and simulated records. The image algorithm module produces seat status from visual inputs. The frontend presents the resulting seat state to users and supports the expected interaction flow. The modules communicate through agreed fields rather than through private, module-specific formats.
+
+\subsection{High-Level Architecture}
+
+\begin{center}
+\fbox{
+\begin{minipage}{0.92\linewidth}
+\centering
+Camera frame or local image\\
+$\downarrow$\\
+Image algorithm: YOLOv8n detection + seat ROI matching + state machine\\
+$\downarrow$\\
+Redis latest seat state + MySQL \texttt{seat\_status\_log} history + local CSV evidence\\
+$\downarrow$\\
+Backend/API and frontend seat availability interface
+\end{minipage}
+}
+\end{center}
+
+\subsection{Data Flow}
+
+The common data flow is expected to be:
+
+\begin{enumerate}
+  \item The data structure module creates the MySQL schema, including \texttt{seat\_config} and \texttt{seat\_status\_log}.
+  \item The image algorithm module reads seat ROI coordinates from \texttt{seat\_config}, or from fallback configuration during local testing.
+  \item A local image or sampled video frame is processed by the YOLO detector.
+  \item Detected people and objects are matched to seat ROIs.
+  \item The state machine generates \texttt{free}, \texttt{occupied}, \texttt{suspected}, or \texttt{unavailable}.
+  \item Latest state is written to Redis for real-time use, while historical logs are written to MySQL.
+  \item The frontend reads the latest state through the backend interface and displays the seat status to users.
+\end{enumerate}
+
+\subsection{Data Structure Architecture}
+
+% Data structure teammate: add schema summary, six tables, key fields,
+% simulation script workflow, and how Redis/MySQL support backend/frontend use.
+
+\subsection{Frontend Architecture}
+
+% Frontend teammate: add technology stack, page/component structure,
+% user workflow, API assumptions, screenshots, and UI status representation.
+
+\subsection{Image Algorithm Architecture}
+
+The image algorithm module follows a three-layer design:
+
+\begin{enumerate}
+  \item \textbf{Object detection:} YOLOv8n detects people and common seat-occupying objects such as backpacks, handbags, suitcases, books, laptops, cell phones, bottles, cups, and umbrellas.
+  \item \textbf{ROI matching:} each seat has a region of interest (ROI). A detected object is assigned to a seat if the detection center lies inside the seat ROI, or if the overlap ratio or IoU exceeds the configured threshold.
+  \item \textbf{State machine:} the module converts \texttt{has\_person} and \texttt{has\_object} into a final status. A person means \texttt{occupied}; no person but object over the threshold means \texttt{suspected}; no person and no object means \texttt{free}; inactive seats are \texttt{unavailable}.
+\end{enumerate}
+
+This design deliberately separates visual recognition from seat-level business logic. YOLO provides object boxes and labels, but the ROI and state machine determine whether a specific physical seat is available or suspected of being occupied by belongings.
