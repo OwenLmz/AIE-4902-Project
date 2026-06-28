@@ -1,0 +1,78 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{url}
+
+\hypersetup{
+  colorlinks=false,
+  pdfborder={0 0 0}
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.65em}
+\renewcommand{\arraystretch}{1.25}
+
+\newcommand{\projecttitle}{Smart Campus Library Seat Occupancy System}
+\newcommand{\coursename}{AIE 4902 AI Capstone Project II}
+\newcommand{\reporttype}{Midterm Project Report}
+\newcommand{\repositorylink}{\url{https://github.com/OwenLmz/AIE-4902-Project}}
+
+\newcommand{\todobox}[1]{%
+  \vspace{0.4em}
+  \noindent\fbox{%
+    \begin{minipage}{0.94\linewidth}
+      \textbf{TODO for teammate:} #1
+    \end{minipage}
+  }
+  \vspace{0.4em}
+}
+
+\newcommand{\moduleplaceholder}[2]{%
+  \subsection{#1}
+  \todobox{#2}
+}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{1.2cm}
+  {\Large \coursename\par}
+  \vspace{1.2cm}
+  {\huge \textbf{\projecttitle}\par}
+  \vspace{0.5cm}
+  {\Large \reporttype\par}
+  \vspace{1.5cm}
+  \begin{tabular}{>{\bfseries}p{4cm}p{9cm}}
+    Team & SAI Capstone Project Team \\
+    Repository & \repositorylink \\
+    Submission & Midterm Report + Code + Evidence \\
+    Assessment focus & Implemented baseline, technical rationale, evidence, risks, final plan, contribution, and AI-use disclosure \\
+  \end{tabular}
+  \vfill
+  {\large Date: \today\par}
+\end{titlepage}
+
+\pagenumbering{roman}
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+
+\input{sections/01_project_overview}
+\input{sections/02_requirements_success_criteria}
+\input{sections/03_technical_approach_architecture}
+\input{sections/04_progress_implemented_work}
+\input{sections/05_evidence_evaluation}
+\input{sections/06_challenges_risks_limitations}
+\input{sections/07_plan_to_final_delivery}
+\input{sections/08_team_roles_contributions}
+\input{sections/09_ai_tool_use_disclosure}
+
+\appendix
+\input{appendices/appendix_contribution_ai_record}
+
+\end{document}

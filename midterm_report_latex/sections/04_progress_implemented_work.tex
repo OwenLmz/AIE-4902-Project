@@ -1,0 +1,38 @@
+\section{Progress and Implemented Work}
+
+This section compares the team's current progress against the expected midterm status: stable scope, agreed architecture, implemented baseline or core module, evidence of progress, identified risks, and clear ownership.
+
+\moduleplaceholder{Data Structure Module Progress}{Describe the completed SQL schema, simulation data generator, CSV generation, import workflow, module interface documentation, and any test/import evidence. Add file names and screenshots if available.}
+
+\moduleplaceholder{Frontend Module Progress}{Describe implemented pages/components, current UI state, mocked or real data connection, screenshots, and remaining frontend work. Add file names and screenshots if available.}
+
+\subsection{Image Algorithm Module Progress}
+
+The image algorithm module has been implemented as a CPU-based YOLOv8n baseline under the repository folder \texttt{image\_algorithm/} or the corresponding image algorithm folder in the shared project. Its purpose is to convert local images, or frames extracted from a future video stream, into structured seat status records.
+
+The implemented module includes:
+
+\begin{itemize}
+  \item \texttt{main.py} as the command-line entry point;
+  \item \texttt{src/detector.py} for YOLO model loading and inference;
+  \item \texttt{src/geometry.py} for detection box and seat ROI matching;
+  \item \texttt{src/state.py} for converting person/object signals into seat states;
+  \item \texttt{src/storage.py} for Redis and MySQL integration;
+  \item \texttt{src/pipeline.py} for the complete image-to-status workflow;
+  \item \texttt{config.yaml}, \texttt{school\_test\_config.yaml}, and \texttt{web\_samples\_config.yaml} for reproducible configuration;
+  \item \texttt{setup.ps1}, \texttt{requirements.txt}, and \texttt{README.md} for teammate setup;
+  \item unit tests under \texttt{tests/}.
+\end{itemize}
+
+The module supports two modes. In normal mode, it reads \texttt{seat\_config} from MySQL, writes the latest seat states to Redis, and inserts historical rows into MySQL \texttt{seat\_status\_log}. In local demonstration mode, it can run with \texttt{--dry-run --skip-mysql --skip-redis}, use fallback seats from YAML, and generate \texttt{outputs/latest\_seat\_status.csv}. This allows the image logic to be tested even when local database services are not configured.
+
+The current state rules are:
+
+\begin{itemize}
+  \item inactive seat: \texttt{unavailable};
+  \item person detected in ROI: \texttt{occupied}, with \texttt{suspect\_duration = 0};
+  \item no person but object detected: accumulate \texttt{suspect\_duration}; if it reaches the threshold, output \texttt{suspected};
+  \item no person and no object: \texttt{free}, with \texttt{suspect\_duration = 0}.
+\end{itemize}
+
+The module was uploaded to the shared GitHub repository in commit \texttt{3a99c09} with the message \texttt{Add image algorithm module}. The upload intentionally excluded virtual environments, model weights, local password files, real school images, third-party sample images, and generated output files.
