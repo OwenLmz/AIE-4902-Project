@@ -1,0 +1,447 @@
+[模块对接说明.md](https://github.com/user-attachments/files/29434125/default.md)
+# Smart Campus 
+
+# 图像算法
+
+## 总结
+
+1. 图像跑 YOLO 
+2. 把结果写入 **Redis**（供前端实时读取）
+3. 同时把结果写入 **MySQL 的 seat_status_log 表**（供历史追溯）
+
+---
+
+## 1.从数据库读一次 `seat_config` 表，知道每个座位的图像坐标。
+
+`roi_x1, roi_y1, roi_x2, roi_y2` 是这个座位在图像里的矩形区域（左上角和右下角坐标，单位像素）。  
+YOLO 检测完之后，检测框是否和这个矩形有重叠（IoU > 0.3），有重叠说明这个物体/人在这个座位上。
+
+---
+
+## Step 2：推理完后，判断每个座位的状态
+
+```
+如果 has_person == True：
+    status = 'occupied'
+    suspect_duration = 0          ← 有人出现，疑似时长立刻清零
+
+如果 has_person == False 且 has_object == True：
+    suspect_duration = 上次记录的时长 + 采样间隔（分钟）
+    如果 suspect_duration < 10：
+        status = 'occupied'       ← 短暂离开，还算正常使用
+    如果 10 <= suspect_duration < 20：
+        status = 'occupied'       ← 轻度异常，暂不标记
+    如果 20 <= suspect_duration < 30：
+        status = 'suspected'      ← 疑似占座，前端显示黄色
+    如果 suspect_duration >= 30：
+        status = 'suspected'      ← 管理员优先处理（前端会高亮）
+
+如果 has_person == False 且 has_object == False：
+    status = 'free'
+    suspect_duration = 0
+```
+
+> **注意**：`suspect_duration` 需要持久化，不能每次推理都从 0 开始算。  
+> 建议每次推理前先从 Redis 读上一次的 `suspect_min` 值，在这个基础上累加。
+
+---
+
+## Step 3：把结果写入 Redis（前端读取数据）
+
+**每个座位写一条 Redis Hash，key 格式固定为 `seat:{seat_id}`。**
+
+```python
+import redis
+
+r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+
+# 写入示例（F3-A01 疑似占座 22 分钟）
+r.hset('seat:F3-A01', mapping={
+    'status':         'suspected',   # 必填，只能是下面四个值之一
+    'has_person':     '0',           # 必填，字符串 '0' 或 '1'
+    'has_object':     '1',           # 必填，字符串 '0' 或 '1'
+    'suspect_min':    '22',          # 必填，整数转字符串
+    'floor':          '3',           # 必填，供前端按楼层过滤
+    'zone':           'A',           # 必填
+    'updated_at':     '2025-06-17 20:30:00'  # 必填，方便前端显示更新时间
+})
+r.expire('seat:F3-A01', 120)  # 必须设过期时间 120 秒，防止摄像头断线后数据一直存着
+```
+
+**status 字段只允许这四个值，不能用其他的：**
+
+| status 值 | 含义 |
+|---|---|
+| `free` | 空闲 |
+| `occupied` | 使用中（含有人 + 短暂离座） |
+| `suspected` | 疑似占座（有物无人 ≥ 20 分钟） |
+| `unavailable` | 不可用（维修/封闭，通常手动设置） |
+
+---
+
+## Step 4：同时把结果写入 
+
+```python
+import pymysql
+from datetime import datetime
+
+def write_to_mysql(results: list):
+    """
+    results: 每次推理完的结果列表
+    每个元素格式：
+    {
+        'seat_id': 'F3-A01',
+        'floor': 3,
+        'zone': 'A',
+        'has_person': False,
+        'has_object': True,
+        'status': 'suspected',
+        'suspect_duration': 22
+    }
+    """
+    conn = pymysql.connect(host='localhost', user='root', password='你的密码', db='smart_campus')
+    cursor = conn.cursor()
+
+    sql = """
+        INSERT INTO seat_status_log
+            (seat_id, floor, zone, detected_at, has_person, has_object, status, suspect_duration)
+        VALUES
+            (%s, %s, %s, %s, %s, %s, %s, %s)
+    """
+    rows = [
+        (
+            r['seat_id'],
+            r['floor'],
+            r['zone'],
+            datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            1 if r['has_person'] else 0,
+            1 if r['has_object'] else 0,
+            r['status'],
+            r['suspect_duration']
+        )
+        for r in results
+    ]
+
+    cursor.executemany(sql, rows)   # 批量插入，一次写入所有座位
+    conn.commit()
+    cursor.close()
+    conn.close()
+```
+
+> 这个函数建议用 `asyncio.create_task()` 异步调用，防止它阻塞主推理流程。
+
+
+---
+
+# 前端
+
+## 总结
+
+1. **不要直接查 MySQL**，所有的实时数据都从 **API 接口**读
+2. 页面第一次加载时，调 REST API 获取全量数据
+3. 之后通过 **WebSocket** 接收实时推送的变化（只推变化的座位，不推全量）
+4. 管理员操作（确认占座/申诉处理）调 POST 接口写回来
+
+---
+
+## 接口列表总览
+
+| 接口 | 方法 | 用途 | 谁用 |
+|---|---|---|---|
+| `/api/floor/{floor_id}/seats` | GET | 获取某楼层所有座位状态 | 学生端、管理员端 |
+| `/api/crowding` | GET | 获取图书馆整体热度 + 预测 | 学生端首页 |
+| `/api/suspects` | GET | 获取疑似占座列表 | 管理员端 |
+| `/api/admin/action` | POST | 管理员处理疑似占座 | 管理员端 |
+| `/api/appeal` | POST | 学生提交申诉 | 学生端 |
+| `/api/appeal/{id}/handle` | POST | 管理员处理申诉 | 管理员端 |
+| `ws://host/ws/seats` | WebSocket | 实时推送座位状态变化 | 全部页面 |
+
+---
+
+## 接口 1：获取某楼层全部座位状态
+
+**用途**：学生打开"查看 3 楼座位"时调用，加载初始数据。
+
+```
+GET /api/floor/3/seats
+```
+
+**返回示例：**
+```json
+[
+  {
+    "seat_id": "F3-A01",
+    "floor": 3,
+    "zone": "A",
+    "status": "suspected",
+    "has_person": false,
+    "has_object": true,
+    "suspect_min": 22,
+    "updated_at": "2025-06-17 20:30:00"
+  },
+  {
+    "seat_id": "F3-A02",
+    "floor": 3,
+    "zone": "A",
+    "status": "occupied",
+    "has_person": true,
+    "has_object": true,
+    "suspect_min": 0,
+    "updated_at": "2025-06-17 20:30:00"
+  },
+  {
+    "seat_id": "F3-A03",
+    "floor": 3,
+    "zone": "A",
+    "status": "free",
+    "has_person": false,
+    "has_object": false,
+    "suspect_min": 0,
+    "updated_at": "2025-06-17 20:30:00"
+  }
+]
+```
+
+**前端展示逻辑（status 对应颜色和文字）：**
+
+| status 值 | 显示颜色 | 显示文字 |
+|---|---|---|
+| `free` | 绿色 | 空闲 |
+| `occupied` | 红色 | 使用中 |
+| `suspected` | 橙色/黄色 | 疑似占座 |
+| `unavailable` | 灰色 | 不可用 |
+
+---
+
+## 接口 2：获取图书馆整体热度
+
+**用途**：学生端首页的热度卡片 + 未来趋势展示。
+
+```
+GET /api/crowding
+```
+
+**返回示例：**
+```json
+{
+  "current_num": 832,
+  "capacity": 2000,
+  "level": "high",
+  "level_label": "高拥挤",
+  "next_30min_num": 780,
+  "next_30min_level": "medium",
+  "next_30min_label": "中等拥挤",
+  "updated_at": "2025-06-17 20:30:00"
+}
+```
+
+**level 对应的展示规则：**
+
+| level 值 | 中文标签 | 建议颜色 | 触发条件（馆内人数/总容量） |
+|---|---|---|---|
+| `low` | 空闲 | 绿色 | < 50% |
+| `medium` | 中等拥挤 | 黄色 | 50% ~ 75% |
+| `high` | 高拥挤 | 橙色 | 75% ~ 90% |
+| `full` | 满载预警 | 红色 | > 90% |
+
+---
+
+## 接口 3：获取疑似占座列表（管理员专用）
+
+**用途**：管理员端的待处理列表，按持续时间倒序排列（最久的排最前面）。
+
+```
+GET /api/suspects
+```
+
+**返回示例：**
+```json
+[
+  {
+    "seat_id": "F3-A01",
+    "floor": 3,
+    "zone": "A",
+    "status": "suspected",
+    "suspect_min": 35,
+    "priority": "urgent",
+    "updated_at": "2025-06-17 20:30:00"
+  },
+  {
+    "seat_id": "F2-B07",
+    "floor": 2,
+    "zone": "B",
+    "status": "suspected",
+    "suspect_min": 21,
+    "priority": "normal",
+    "updated_at": "2025-06-17 20:28:00"
+  }
+]
+```
+
+**priority 对应的展示规则：**
+
+| priority 值 | 含义 | 建议展示 |
+|---|---|---|
+| `urgent` | suspect_min ≥ 30，需要优先处理 | 红色标签"紧急" |
+| `normal` | suspect_min 在 20~30 之间 | 橙色标签"待处理" |
+
+---
+
+## 接口 4：管理员处理疑似占座
+
+**用途**：管理员点击"确认占座"或"正常使用"按钮后调用。
+
+```
+POST /api/admin/action
+```
+
+**请求体：**
+```json
+{
+  "seat_id": "F3-A01",
+  "action": "release",
+  "admin_id": 3,
+  "note": "已现场确认，通知同学移走物品"
+}
+```
+
+**action 只能传这四个值：**
+
+| action 值 | 含义 |
+|---|---|
+| `release` | 确认占座并释放座位 |
+| `keep` | 正常使用，保留座位状态 |
+| `hold` | 暂不处理 |
+| `false_alarm` | 系统误判，纠正状态 |
+
+**返回示例（成功）：**
+```json
+{
+  "success": true,
+  "message": "处理成功",
+  "seat_id": "F3-A01",
+  "new_status": "free"
+}
+```
+
+---
+
+## 接口 5：学生提交申诉
+
+**用途**：学生点击"我要申诉"按钮后调用。
+
+```
+POST /api/appeal
+```
+
+**请求体：**
+```json
+{
+  "seat_id": "F3-A01",
+  "submitted_by": 1,
+  "issue_type": "false_alarm",
+  "description": "这是我的座位，我去打印文件了，书包还在，不是占座"
+}
+```
+
+**issue_type 只能传这三个值：**
+
+| issue_type 值 | 含义 |
+|---|---|
+| `false_alarm` | 认为系统误判，申请纠正 |
+| `real_squatter` | 举报真实占座行为 |
+| `other` | 其他问题 |
+
+**返回示例：**
+```json
+{
+  "success": true,
+  "appeal_id": 42,
+  "message": "申诉已提交，管理员将在30分钟内处理"
+}
+```
+
+---
+
+## 接口 6：管理员处理申诉
+
+```
+POST /api/appeal/42/handle
+```
+
+**请求体：**
+```json
+{
+  "handled_by": 3,
+  "result": "false_alarm",
+  "note": "经现场确认为误判，已恢复座位状态"
+}
+```
+
+**result 只能传这四个值：**
+
+| result 值 | 含义 | 对应显示 |
+|---|---|---|
+| `confirmed` | 确认占座已释放 | "已确认占座并释放" |
+| `normal_use` | 正常使用 | "经确认正常使用" |
+| `false_alarm` | 系统误判已纠正 | "误判，已恢复状态" |
+| `no_action` | 暂不处理 | "暂不处理" |
+
+---
+
+## WebSocket 实时推送
+
+**用途**：座位状态每 30 秒更新一次，不用轮询，直接监听推送即可。
+
+**连接地址：**
+```
+ws://localhost:8000/ws/seats
+```
+
+**连接后服务端主动推送的消息格式（只推有变化的座位）：**
+```json
+{
+  "type": "seat_update",
+  "data": [
+    {
+      "seat_id": "F3-A01",
+      "floor": 3,
+      "status": "suspected",
+      "suspect_min": 23,
+      "updated_at": "2025-06-17 20:30:30"
+    },
+    {
+      "seat_id": "F3-A03",
+      "floor": 3,
+      "status": "occupied",
+      "suspect_min": 0,
+      "updated_at": "2025-06-17 20:30:30"
+    }
+  ]
+}
+```
+
+**前端 Vue 3 接入示例：**
+```javascript
+// 在组件 onMounted 里建立连接
+const ws = new WebSocket('ws://localhost:8000/ws/seats')
+
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data)
+  if (msg.type === 'seat_update') {
+    msg.data.forEach(seat => {
+      // 用 seat_id 找到页面上对应的座位，局部更新状态
+      updateSeatStatus(seat.seat_id, seat.status, seat.suspect_min)
+    })
+  }
+}
+
+ws.onclose = () => {
+  // 断线后 3 秒重连
+  setTimeout(() => connectWebSocket(), 3000)
+}
+```
+
+> 建议只更新变化的座位节点
+
+
