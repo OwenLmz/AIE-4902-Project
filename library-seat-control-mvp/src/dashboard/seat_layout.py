@@ -167,6 +167,16 @@ def _normalize_polygon(polygon: Any) -> list[tuple[float, float]] | None:
     return [(float(point[0]), float(point[1])) for point in polygon]
 
 
+def _normalize_roi(seat: dict[str, Any]) -> list[tuple[float, float]] | None:
+    values = [_as_number(seat.get(key)) for key in ("roi_x1", "roi_y1", "roi_x2", "roi_y2")]
+    if all(value is not None for value in values):
+        x1, y1, x2, y2 = values
+        if x2 <= x1 or y2 <= y1:
+            return None
+        return [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]
+    return _normalize_polygon(seat.get("polygon"))
+
+
 def layout_key(seat: dict[str, Any]) -> str:
     floor = str(seat.get("floor", ""))
     zone = str(seat.get("zone", ""))
@@ -192,11 +202,11 @@ def group_seats_by_layout(seats: list[dict[str, Any]]) -> dict[str, dict[str, An
                 "warnings": [],
             },
         )
-        if validate_polygon(seat.get("polygon")):
+        if _normalize_roi(seat) is not None:
             group["seats"].append(seat)
         else:
             group["warnings"].append({
-                "code": "invalid_polygon",
+                "code": "invalid_roi",
                 "seat_id": str(seat.get("seat_id", "")),
             })
     return groups
@@ -216,13 +226,13 @@ def get_short_seat_label(seat_id: str) -> str:
 
 
 def _status_class(status: str, mode: str) -> str:
-    if status == "FREE":
+    if status == "free":
         return "seat-free-strong" if mode == "student" else "seat-free"
-    if status == "OCCUPIED":
+    if status == "occupied":
         return "seat-occupied-muted" if mode == "student" else "seat-occupied"
-    if status in {"SUSPICIOUS", "POSSIBLY_OCCUPIED"}:
+    if status == "suspected":
         return "seat-suspected-strong" if mode == "admin" else "seat-suspected"
-    if status == "UNAVAILABLE":
+    if status == "unavailable":
         return "seat-unavailable"
     return "seat-occupied-muted"
 
@@ -236,18 +246,14 @@ def _empty_layout_html(language: str = "zh") -> str:
 
 def _legend(mode: str = "student", language: str = "zh") -> str:
     suspected_label = (
-        "疑似占座 / 暂不可用"
-        if language == "zh" and mode == "admin"
-        else "疑似占座"
+        "疑似占座"
         if language == "zh"
-        else "Suspicious / Temporary"
-        if mode == "admin"
         else "Suspicious"
     )
     return (
         "<div class='legend'>"
-        f"<span class='legend-item'><span class='legend-dot free'></span>{html.escape(status_text('FREE', language=language))}</span>"
-        f"<span class='legend-item'><span class='legend-dot occupied'></span>{html.escape(status_text('OCCUPIED', language=language))}</span>"
+        f"<span class='legend-item'><span class='legend-dot free'></span>{html.escape(status_text('free', language=language))}</span>"
+        f"<span class='legend-item'><span class='legend-dot occupied'></span>{html.escape(status_text('occupied', language=language))}</span>"
         f"<span class='legend-item'><span class='legend-dot suspected'></span>{html.escape(suspected_label)}</span>"
         f"<span class='legend-item'><span class='legend-dot selected'></span>{html.escape('当前选中' if language == 'zh' else 'Selected')}</span>"
         f"<span class='legend-item'>★ {html.escape('推荐座位' if language == 'zh' else 'Recommended')}</span>"
@@ -263,7 +269,7 @@ def _seat_chip(
     language: str,
 ) -> str:
     seat_id = str(seat.get("seat_id", ""))
-    status = str(seat.get("status") or "UNKNOWN").upper()
+    status = str(seat.get("status") or "unknown").lower()
     classes = ["seat-chip", _status_class(status, mode)]
     if seat_id == selected_seat_id:
         classes.append("seat-selected")
@@ -302,7 +308,7 @@ def build_svg_seat_layout(
     for seat in seats:
         if not isinstance(seat, dict) or not seat.get("seat_id"):
             continue
-        polygon = _normalize_polygon(seat.get("polygon"))
+        polygon = _normalize_roi(seat)
         if polygon is None:
             continue
         normalized.append((seat, polygon))

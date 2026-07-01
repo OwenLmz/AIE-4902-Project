@@ -7,15 +7,15 @@ from typing import Any
 import streamlit as st
 import streamlit.components.v1 as st_components
 
-from src.dashboard.i18n import crowd_level_text, current_language, status_text, t
+from src.dashboard.i18n import crowding_level_text, current_language, status_text, t
 from src.dashboard.styles import status_label
 from src.dashboard.seat_layout import build_svg_seat_layout, group_seats_by_layout
 
 READ_ERROR_CODES = {"missing_file", "invalid_json"}
 SEAT_EMPTY_CODES = {"empty_seats", "missing_field", "duplicate_seat_id"}
-CROWD_EMPTY_CODES = {"missing_file", "invalid_json", "missing_field", "invalid_current_people"}
+CROWD_EMPTY_CODES = {"missing_file", "invalid_json", "missing_field", "invalid_total_in_library"}
 AREA_STATUS_NO_CAPACITY = "暂无可用容量"
-ANOMALY_STATUSES = {"POSSIBLY_OCCUPIED", "SUSPICIOUS"}
+ANOMALY_STATUSES = {"suspected"}
 RECOMMENDED_AREA_LABEL = "推荐去"
 CONSIDER_AREA_LABEL = "可考虑"
 AVOID_AREA_LABEL = "不建议"
@@ -678,6 +678,14 @@ def _people_count(value: Any) -> str:
     return f"{value} {t('unit.people')}"
 
 
+def _seat_location_label(seat: dict[str, Any]) -> str:
+    floor = seat.get("floor") or t("empty.no_data")
+    zone = seat.get("zone") or t("empty.no_data")
+    if current_language() == "en":
+        return f"Floor {floor} / Zone {zone}"
+    return f"{floor} 楼 / {zone} 区"
+
+
 def _metric_card(label: str, value: Any, help_text: str | None = None, tone: str | None = None) -> str:
     safe_label = html.escape(str(label))
     safe_value = html.escape(str(value))
@@ -743,41 +751,40 @@ def render_student_summary(data: dict[str, Any]) -> None:
     crowd = data.get("crowd", {})
     errors = data.get("errors", {})
 
-    current_people = crowd.get("current_people")
+    total_in_library = crowd.get("total_in_library")
     capacity = crowd.get("capacity")
-    crowd_level = crowd.get("crowd_level")
+    crowding_level = crowd.get("crowding_level")
     forecast_30m = crowd.get("forecast_30m")
 
     if errors.get("crowd") == "invalid_capacity":
         people_capacity_text = t("summary.forecast_unavailable")
-        crowd_level_label = t("summary.forecast_unavailable")
-    elif not _crowd_data_available(data) or current_people is None:
+        crowding_level_label = t("summary.forecast_unavailable")
+    elif not _crowd_data_available(data) or total_in_library is None:
         people_capacity_text = t("empty.no_crowd_data")
-        crowd_level_label = t("empty.no_crowd_data")
+        crowding_level_label = t("empty.no_crowd_data")
     elif capacity is None:
         people_capacity_text = t("summary.forecast_unavailable")
-        crowd_level_label = t("summary.forecast_unavailable")
+        crowding_level_label = t("summary.forecast_unavailable")
     else:
-        people_capacity_text = f"{current_people} / {capacity} {t('unit.people')}"
-        crowd_level_label = crowd_level_text(crowd_level)
+        people_capacity_text = f"{total_in_library} / {capacity} {t('unit.people')}"
+        crowding_level_label = crowding_level_text(crowding_level)
 
     free_count: int | None = None
     if not _seat_data_available(data) or errors.get("seat") in SEAT_EMPTY_CODES:
         free_seats_text = t("empty.no_seat_data")
     else:
-        free_count = sum(1 for seat in seats if seat.get("status") == "FREE")
+        free_count = sum(1 for seat in seats if seat.get("status") == "free")
         free_seats_text = _seat_count(free_count)
 
     forecast_text = t("summary.forecast_unavailable") if forecast_30m is None else str(forecast_30m)
 
-    st.subheader(t("summary.title"))
     m1, m2, m3, m4 = st.columns(4)
-    m1.markdown(_metric_card(t("summary.people_capacity"), people_capacity_text, t("summary.people_help")), unsafe_allow_html=True)
-    m2.markdown(_metric_card(t("summary.free_seats"), free_seats_text, t("summary.free_help")), unsafe_allow_html=True)
-    m3.markdown(_metric_card(t("summary.crowd_level"), crowd_level_label), unsafe_allow_html=True)
-    m4.markdown(_metric_card(t("summary.trend"), forecast_text, t("summary.forecast_help") if forecast_30m is None else None), unsafe_allow_html=True)
+    m1.markdown(_metric_card(t("summary.people_capacity"), people_capacity_text), unsafe_allow_html=True)
+    m2.markdown(_metric_card(t("summary.free_seats"), free_seats_text), unsafe_allow_html=True)
+    m3.markdown(_metric_card(t("summary.crowding_level"), crowding_level_label), unsafe_allow_html=True)
+    m4.markdown(_metric_card(t("summary.trend"), forecast_text), unsafe_allow_html=True)
 
-    if isinstance(free_count, int) and current_people is not None and capacity is not None:
+    if isinstance(free_count, int) and total_in_library is not None and capacity is not None:
         if free_count <= 0:
             action_text = t("summary.no_free_action")
         elif free_count <= 3:
@@ -787,12 +794,12 @@ def render_student_summary(data: dict[str, Any]) -> None:
         if current_language() == "en":
             trend_text = "Future trend is unavailable." if forecast_30m is None else f"Future trend: {forecast_30m}."
             decision_body = (
-                f"Current crowd: {current_people}/{capacity} {t('unit.people')}; "
-                f"level: {crowd_level_label}; free seats: {free_count}. {action_text} {trend_text}"
+                f"Current crowd: {total_in_library}/{capacity} {t('unit.people')}; "
+                f"level: {crowding_level_label}; free seats: {free_count}. {action_text} {trend_text}"
             )
         else:
             trend_text = "未来趋势暂不可用。" if forecast_30m is None else f"未来趋势：{forecast_30m}。"
-            decision_body = f"馆内人数 {current_people}/{capacity} 人，拥挤等级为{crowd_level_label}，全馆空闲 {free_count} 座。{action_text}{trend_text}"
+            decision_body = f"馆内人数 {total_in_library}/{capacity} 人，拥挤等级为{crowding_level_label}，全馆空闲 {free_count} 座。{action_text}{trend_text}"
         st.markdown(
             _decision_callout(
                 t("summary.decision"),
@@ -800,12 +807,6 @@ def render_student_summary(data: dict[str, Any]) -> None:
             ),
             unsafe_allow_html=True,
         )
-        next_step_text = (
-            "下一步：先看区域推荐，再打开座位地图选择具体座位。"
-            if current_language() == "zh"
-            else "Next: check area advice, then open the seat map to choose a specific seat."
-        )
-        st.markdown(f"<div class='next-step-card'>{html.escape(next_step_text)}</div>", unsafe_allow_html=True)
     else:
         st.markdown(
             _decision_callout(
@@ -831,7 +832,7 @@ def _area_status_label(available_ratio: float | None) -> str:
 
 
 def _area_recommendation_label(row: dict[str, Any]) -> str:
-    anomaly_count = row["temporarily_unavailable_seats"] + row["suspicious_seats"]
+    anomaly_count = row["suspicious_seats"]
     available_ratio = row.get("available_ratio")
     free_seats = row["free_seats"]
     if available_ratio is None or free_seats <= 0:
@@ -863,7 +864,7 @@ def _free_seat_for_area(seats: list[dict[str, Any]], area: dict[str, Any]) -> st
         seat for seat in seats
         if str(seat.get("floor", "")) == floor
         and str(seat.get("zone", "")) == zone
-        and seat.get("status") == "FREE"
+        and seat.get("status") == "free"
         and seat.get("seat_id")
     ]
     free_seats = sorted(matching, key=lambda seat: str(seat.get("seat_id", "")))
@@ -874,7 +875,7 @@ def _free_seat_for_area(seats: list[dict[str, Any]], area: dict[str, Any]) -> st
 
 def _recommended_seat_for_seats(seats: list[dict[str, Any]]) -> str | None:
     free_seats = sorted(
-        (seat for seat in seats if seat.get("status") == "FREE" and seat.get("seat_id")),
+        (seat for seat in seats if seat.get("status") == "free" and seat.get("seat_id")),
         key=lambda seat: str(seat.get("seat_id", "")),
     )
     if not free_seats:
@@ -949,16 +950,14 @@ def build_area_summary(seats: list[dict[str, Any]]) -> list[dict[str, Any]]:
             },
         )
         row["total_seats"] += 1
-        status = str(seat.get("status") or "").upper()
-        if status == "FREE":
+        status = str(seat.get("status") or "").lower()
+        if status == "free":
             row["free_seats"] += 1
-        elif status == "OCCUPIED":
+        elif status == "occupied":
             row["occupied_seats"] += 1
-        elif status == "POSSIBLY_OCCUPIED":
-            row["temporarily_unavailable_seats"] += 1
-        elif status == "SUSPICIOUS":
+        elif status == "suspected":
             row["suspicious_seats"] += 1
-        elif status == "UNAVAILABLE":
+        elif status == "unavailable":
             row["unavailable_seats"] += 1
 
     summary: list[dict[str, Any]] = []
@@ -972,7 +971,7 @@ def build_area_summary(seats: list[dict[str, Any]]) -> list[dict[str, Any]]:
             AREA_STATUS_NO_CAPACITY if available_ratio is None else f"{available_ratio:.0%}"
         )
         row["area_status_label"] = _area_status_label(available_ratio)
-        row["anomaly_seats"] = row["temporarily_unavailable_seats"] + row["suspicious_seats"]
+        row["anomaly_seats"] = row["suspicious_seats"]
         row["recommendation_label"] = _area_recommendation_label(row)
         summary.append(row)
 
@@ -980,7 +979,6 @@ def build_area_summary(seats: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def render_area_overview(seats: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    st.subheader(t("area.title"))
     summary = build_area_summary(seats)
     if not summary:
         st.info(t("area.no_data"))
@@ -1001,9 +999,9 @@ def render_area_overview(seats: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 else f"{area_name} has relatively more free seats, so it is recommended first."
             )
             risk = (
-                f"This area has {best_area['anomaly_seats']} suspicious or temporarily unavailable seats."
+                f"This area has {best_area['anomaly_seats']} suspected seats."
                 if best_area["anomaly_seats"] > 0
-                else "No suspicious seat risk is currently shown in this area."
+                else "No suspected seat risk is currently shown in this area."
             )
             next_step = f"Choose {suggested_seat} first." if suggested_seat else "Open the seat map before choosing."
             title = f"{t('area.current_advice')}: check {area_name} first"
@@ -1015,7 +1013,7 @@ def render_area_overview(seats: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 else f"{area_name}空闲座位相对更多，因此优先推荐"
             )
             risk = (
-                f"该区域存在 {best_area['anomaly_seats']} 个疑似占座或暂不可用座位"
+                f"该区域存在 {best_area['anomaly_seats']} 个疑似占座座位"
                 if best_area["anomaly_seats"] > 0
                 else "该区域暂无疑似占座风险"
             )
@@ -1034,11 +1032,6 @@ def render_area_overview(seats: list[dict[str, Any]]) -> list[dict[str, Any]]:
         )
     else:
         st.info(t("area.no_recommendation"))
-    st.markdown(
-        f"<div class='section-note'>{html.escape(t('area.note'))}</div>",
-        unsafe_allow_html=True,
-    )
-
     rows_to_show = summary[:3]
     columns = st.columns(len(rows_to_show))
     for index, row in enumerate(rows_to_show):
@@ -1051,7 +1044,6 @@ def render_floor_zone_filters(
     preferred_area: dict[str, Any] | None = None,
     key_prefix: str = "student",
 ) -> list[dict[str, Any]]:
-    st.subheader(t("map.title"))
     if not seats:
         st.info(t("empty.no_seat_data"))
         return []
@@ -1113,7 +1105,6 @@ def render_student_seat_preview(seats: list[dict[str, Any]]) -> None:
             t("seat.floor"): seat.get("floor", ""),
             t("seat.zone"): seat.get("zone", ""),
             t("seat.status"): status_text(seat.get("status"), audience="student"),
-            t("seat.updated"): seat.get("updated_at") or "",
         }
         for seat in seats
     ]
@@ -1163,7 +1154,7 @@ def render_student_seat_layout(seats: list[dict[str, Any]]) -> None:
         str(seat.get("seat_id", ""))
         for seat in sorted(
             group_seats,
-            key=lambda seat: (seat.get("status") != "FREE", str(seat.get("seat_id", ""))),
+            key=lambda seat: (seat.get("status") != "free", str(seat.get("seat_id", ""))),
         )
         if seat.get("seat_id")
     ]
@@ -1197,18 +1188,15 @@ def render_student_seat_layout(seats: list[dict[str, Any]]) -> None:
     )
     if selected_seat:
         with right_col:
-            title = t("map.current_or_recommended")
+            title = t("map.selected")
             if recommended_seat_id and selected_seat_id == recommended_seat_id:
                 title = t("map.recommended")
             st.markdown(f"**{title}**")
             st.markdown(
                 _detail_card([
                     (t("seat.id"), selected_seat.get("seat_id")),
-                    (t("seat.floor"), f"{selected_seat.get('floor') or t('empty.no_data')} 楼" if lang == "zh" else f"Floor {selected_seat.get('floor') or t('empty.no_data')}"),
-                    (t("seat.zone"), f"{selected_seat.get('zone') or t('empty.no_data')} 区" if lang == "zh" else f"Zone {selected_seat.get('zone') or t('empty.no_data')}"),
-                    (t("seat.camera"), selected_seat.get("camera_id")),
+                    (t("seat.location"), _seat_location_label(selected_seat)),
                     (t("seat.status"), status_text(selected_seat.get("status"), audience="student")),
-                    (t("seat.updated"), format_datetime(selected_seat.get("updated_at"), t("empty.no_seat_data"))),
                 ]),
                 unsafe_allow_html=True,
             )
@@ -1221,7 +1209,7 @@ def render_student_seat_layout(seats: list[dict[str, Any]]) -> None:
 
     warnings = selected_group.get("warnings") or []
     if warnings:
-        st.warning(t("map.warning_invalid_polygon"))
+        st.warning(t("map.warning_invalid_layout"))
 
 
 def build_crowd_trend_frame(crowd: dict[str, Any]) -> dict[str, Any]:
@@ -1644,23 +1632,23 @@ def _crowd_direction(rows: list[dict[str, Any]], selected_range: str) -> str | N
 
 
 def build_crowd_trend_summary(crowd: dict[str, Any], trend: dict[str, Any]) -> str:
-    current_people = _to_float(crowd.get("current_people"))
+    total_in_library = _to_float(crowd.get("total_in_library"))
     capacity = _to_float(crowd.get("capacity"))
     lang = current_language()
-    level = crowd_level_text(crowd.get("crowd_level"))
+    level = crowding_level_text(crowd.get("crowding_level"))
     rows = trend.get("rows") or []
     selected_range = str(trend.get("selected_range") or CROWD_TREND_RANGE_OPTIONS[0])
     direction = _crowd_direction(rows, selected_range)
     if not direction:
         return "当前数据量不足，暂无法判断趋势。" if lang == "zh" else "Not enough data to determine the trend."
 
-    if current_people is None and rows:
-        current_people = _to_float(rows[-1].get("历史馆内人数"))
+    if total_in_library is None and rows:
+        total_in_library = _to_float(rows[-1].get("历史馆内人数"))
 
-    if current_people is not None and capacity and capacity > 0:
-        current_text = f"{int(current_people)} / {int(capacity)} {t('unit.people')}"
-    elif current_people is not None:
-        current_text = _people_count(int(current_people))
+    if total_in_library is not None and capacity and capacity > 0:
+        current_text = f"{int(total_in_library)} / {int(capacity)} {t('unit.people')}"
+    elif total_in_library is not None:
+        current_text = _people_count(int(total_in_library))
     else:
         return "当前数据量不足，暂无法判断趋势。" if lang == "zh" else "Not enough data to determine the trend."
 
@@ -1685,23 +1673,23 @@ def build_crowd_trend_summary(crowd: dict[str, Any], trend: dict[str, Any]) -> s
 
 
 def _crowd_capacity_strip(crowd: dict[str, Any], trend: dict[str, Any]) -> str:
-    current_people = _to_float(crowd.get("current_people"))
+    total_in_library = _to_float(crowd.get("total_in_library"))
     capacity = _to_float(crowd.get("capacity"))
     rows = trend.get("rows") or []
-    if current_people is None and rows:
-        current_people = _to_float(rows[-1].get("历史馆内人数"))
-    if current_people is not None and capacity and capacity > 0:
-        ratio = current_people / capacity
+    if total_in_library is None and rows:
+        total_in_library = _to_float(rows[-1].get("历史馆内人数"))
+    if total_in_library is not None and capacity and capacity > 0:
+        ratio = total_in_library / capacity
         ratio_text = f"{ratio:.0%}"
-        current_text = _people_count(int(current_people))
+        current_text = _people_count(int(total_in_library))
         capacity_text = _people_count(int(capacity))
     else:
         ratio_text = t("empty.no_data")
-        current_text = _people_count(int(current_people)) if current_people is not None else t("empty.no_data")
+        current_text = _people_count(int(total_in_library)) if total_in_library is not None else t("empty.no_data")
         capacity_text = t("empty.no_data")
     return (
         "<div class='decision-callout' style='margin-bottom:10px;'>"
-        f"<strong>{html.escape(t('trend.current_people'))}: </strong>{html.escape(current_text)}"
+        f"<strong>{html.escape(t('trend.total_in_library'))}: </strong>{html.escape(current_text)}"
         f"&nbsp;&nbsp; <strong>{html.escape(t('trend.capacity'))}: </strong>{html.escape(capacity_text)}"
         f"&nbsp;&nbsp; <strong>{html.escape(t('trend.ratio'))}: </strong>{html.escape(ratio_text)}"
         "</div>"
@@ -1709,7 +1697,6 @@ def _crowd_capacity_strip(crowd: dict[str, Any], trend: dict[str, Any]) -> str:
 
 
 def render_crowd_trend(crowd: dict[str, Any]) -> None:
-    st.subheader(t("trend.title"))
     selected_range = st.radio(
         t("trend.range"),
         CROWD_TREND_RANGE_OPTIONS,
@@ -1785,11 +1772,9 @@ def _section_display_label(label: str) -> str:
 
 def _render_left_navigation(labels: list[str], admin_mode: bool) -> str:
     role_title = t("app.admin_mode") if admin_mode else t("app.student_mode")
-    role_desc = t("nav.admin_desc") if admin_mode else t("nav.student_desc")
     st.markdown(
         f"<span class='mode-badge'>{html.escape(role_title)}</span>"
-        f"<div class='side-panel-title'>{html.escape(t('nav.entry'))}</div>"
-        f"<div class='side-panel-subtitle'>{html.escape(role_desc)}</div>",
+        f"<div class='side-panel-title'>{html.escape(t('nav.entry'))}</div>",
         unsafe_allow_html=True,
     )
     session_key = "admin_nav" if admin_mode else "student_nav"
@@ -1803,7 +1788,6 @@ def _render_left_navigation(labels: list[str], admin_mode: bool) -> str:
         label_visibility="collapsed",
         format_func=_section_display_label,
     )
-    st.caption(_nav_description(selected))
     return selected
 
 
@@ -1849,10 +1833,10 @@ def build_admin_summary(seats: list[dict[str, Any]]) -> dict[str, Any]:
         }
 
     total_seats = len(seats)
-    occupied_count = sum(1 for seat in seats if seat.get("status") == "OCCUPIED")
-    unavailable_count = sum(1 for seat in seats if seat.get("status") == "UNAVAILABLE")
-    possibly_count = sum(1 for seat in seats if seat.get("status") == "POSSIBLY_OCCUPIED")
-    suspicious_count = sum(1 for seat in seats if seat.get("status") == "SUSPICIOUS")
+    occupied_count = sum(1 for seat in seats if seat.get("status") == "occupied")
+    unavailable_count = sum(1 for seat in seats if seat.get("status") == "unavailable")
+    possibly_count = unavailable_count
+    suspicious_count = sum(1 for seat in seats if seat.get("status") == "suspected")
     usable_capacity = total_seats - unavailable_count
     occupancy_rate = None
     if usable_capacity > 0:
@@ -1887,10 +1871,10 @@ def build_admin_summary(seats: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _anomaly_sort_key(row: dict[str, Any]) -> tuple[int, int, float]:
-    status_priority = 0 if row.get("status") == "SUSPICIOUS" else 1
-    minutes = row.get("unattended_minutes")
+    status_priority = 0 if row.get("status") == "suspected" else 1
+    minutes = row.get("suspect_duration")
     minutes_value = minutes if isinstance(minutes, int) else 0
-    parsed = _parse_timestamp(row.get("updated_at"))
+    parsed = _parse_timestamp(row.get("detected_at"))
     timestamp = parsed.timestamp() if parsed else 0.0
     return status_priority, -minutes_value, -timestamp
 
@@ -1909,9 +1893,12 @@ def build_anomaly_rows(seats: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "status_label": status_text(seat.get("status"), audience="admin"),
             "has_person": seat.get("has_person"),
             "has_object": seat.get("has_object"),
-            "unattended_minutes": seat.get("unattended_minutes"),
-            "updated_at": seat.get("updated_at"),
-            "polygon": seat.get("polygon"),
+            "suspect_duration": seat.get("suspect_duration"),
+            "detected_at": seat.get("detected_at"),
+            "roi_x1": seat.get("roi_x1"),
+            "roi_y1": seat.get("roi_y1"),
+            "roi_x2": seat.get("roi_x2"),
+            "roi_y2": seat.get("roi_y2"),
         })
     return sorted(rows, key=_anomaly_sort_key)
 
@@ -1924,8 +1911,8 @@ def build_anomaly_display_rows(seats: list[dict[str, Any]]) -> list[dict[str, An
             "floor": row["floor"] or unlabeled,
             "zone": row["zone"] or unlabeled,
             "status": row["status_label"],
-            "unattended_minutes": _format_minutes(row["unattended_minutes"]),
-            "updated_at": format_datetime(row["updated_at"]),
+            "suspect_duration": _format_minutes(row["suspect_duration"]),
+            "detected_at": format_datetime(row["detected_at"]),
         }
         for row in build_anomaly_rows(seats)
     ]
@@ -1937,8 +1924,8 @@ def _localized_anomaly_display_rows(seats: list[dict[str, Any]]) -> list[dict[st
         "floor": t("seat.floor"),
         "zone": t("seat.zone"),
         "status": t("seat.status"),
-        "unattended_minutes": t("seat.unattended"),
-        "updated_at": t("seat.updated"),
+        "suspect_duration": t("seat.unattended"),
+        "detected_at": t("seat.updated"),
     }
     return [
         {columns[key]: value for key, value in row.items()}
@@ -1955,8 +1942,11 @@ def _same_layout_group(seats: list[dict[str, Any]], selected: dict[str, Any]) ->
     ]
 
 
+def _has_roi(seat: dict[str, Any]) -> bool:
+    return all(seat.get(key) is not None for key in ("roi_x1", "roi_y1", "roi_x2", "roi_y2"))
+
+
 def render_admin_summary(seats: list[dict[str, Any]]) -> None:
-    st.subheader(t("admin.title"))
     summary = build_admin_summary(seats)
     area_label = summary["busiest_anomaly_area_label"]
     if current_language() == "en":
@@ -1969,13 +1959,12 @@ def render_admin_summary(seats: list[dict[str, Any]]) -> None:
     occupancy_label = summary["occupancy_rate_label"]
     if current_language() == "en" and occupancy_label == "暂无数据":
         occupancy_label = t("empty.no_data")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.markdown(_metric_card(t("admin.possible"), _seat_count(summary["possibly_occupied_count"])), unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
     suspicious_tone = "critical" if summary["suspicious_count"] else None
-    c2.markdown(_metric_card(t("admin.suspicious"), _seat_count(summary["suspicious_count"]), t("admin.priority"), suspicious_tone), unsafe_allow_html=True)
-    c3.markdown(_metric_card(t("admin.occupancy_rate"), occupancy_label), unsafe_allow_html=True)
+    c1.markdown(_metric_card(t("admin.suspicious"), _seat_count(summary["suspicious_count"]), None, suspicious_tone), unsafe_allow_html=True)
+    c2.markdown(_metric_card(t("admin.occupancy_rate"), occupancy_label), unsafe_allow_html=True)
     area_tone = "warning" if summary["busiest_anomaly_area"] else None
-    c4.markdown(_metric_card(t("admin.busiest_area"), area_label, t("admin.patrol_focus"), area_tone), unsafe_allow_html=True)
+    c3.markdown(_metric_card(t("admin.busiest_area"), area_label, None, area_tone), unsafe_allow_html=True)
 
 
 def render_anomaly_table(seats: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1997,8 +1986,7 @@ def render_anomaly_table(seats: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "<div class='anomaly-card-meta'>"
             f"{html.escape(t('seat.status'))}: {html.escape(str(row.get('status_label') or ''))}<br>"
             f"{html.escape(t('seat.floor'))}/{html.escape(t('seat.zone'))}: {html.escape(location)}<br>"
-            f"{html.escape(t('seat.unattended'))}: {html.escape(_format_minutes(row.get('unattended_minutes')))}<br>"
-            f"{html.escape(t('seat.updated'))}: {html.escape(format_datetime(row.get('updated_at')))}"
+            f"{html.escape(t('seat.unattended'))}: {html.escape(_format_minutes(row.get('suspect_duration')))}"
             "</div>"
             "</div>"
         )
@@ -2020,8 +2008,8 @@ def render_anomaly_detail(selected_seat: dict[str, Any] | None) -> None:
             (t("seat.status"), status_text(selected_seat.get("status"), audience="admin")),
             (t("seat.has_person"), _format_bool(selected_seat.get("has_person"))),
             (t("seat.has_object"), _format_bool(selected_seat.get("has_object"))),
-            (t("seat.unattended"), _format_minutes(selected_seat.get("unattended_minutes"))),
-            (t("seat.updated"), format_datetime(selected_seat.get("updated_at"))),
+            (t("seat.unattended"), _format_minutes(selected_seat.get("suspect_duration"))),
+            (t("seat.updated"), format_datetime(selected_seat.get("detected_at"))),
         ]),
         unsafe_allow_html=True,
     )
@@ -2039,8 +2027,8 @@ def render_anomaly_location(seats: list[dict[str, Any]], selected_seat: dict[str
     scope = f"{floor} 楼 / {zone} 区 / {camera_id}" if lang == "zh" else f"Floor {floor} / Zone {zone} / {camera_id}"
     st.caption(("定位范围：" if lang == "zh" else "Location scope: ") + scope)
 
-    if not selected_seat.get("polygon"):
-        st.info(t("admin.no_polygon"))
+    if not _has_roi(selected_seat):
+        st.info(t("admin.no_layout_coordinates"))
         return
 
     group_seats = _same_layout_group(seats, selected_seat)

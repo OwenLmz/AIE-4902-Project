@@ -45,16 +45,13 @@ def main() -> None:
     with header_left:
         seat_updated_at = html.escape(components.format_datetime(dashboard_data.get("seat_updated_at"), t("empty.no_seat_data")))
         refresh_status = t("app.refresh_on") if auto_refresh else t("app.refresh_off")
-        mode_status = t("app.admin_mode") if admin_mode else t("app.student_mode")
         st.markdown(
             "<div class='app-header'>"
             "<div>"
             f"<h1>{html.escape(t('app.title'))}</h1>"
-            f"<p>{html.escape(t('app.subtitle'))}</p>"
             "</div>"
             "<div class='status-strip'>"
             f"<span class='status-pill'>{html.escape(t('app.mock_status'))}</span>"
-            f"<span class='status-pill'>{html.escape(t('app.current'))}: {html.escape(mode_status)}</span>"
             f"<span class='status-pill'>{html.escape(t('app.seat_updated'))}: {seat_updated_at}</span>"
             f"<span class='status-pill'>{html.escape(t('app.refresh'))}: {html.escape(refresh_status)}</span>"
             "</div>"

@@ -1,0 +1,4 @@
+recorded_at,enter_count,exit_count,total_in_library,crowding_level,is_exam_week,day_of_week,hour_of_day
+2026-06-25 14:30:00,10,2,88,low,0,4,14
+2026-06-25 15:00:00,20,4,104,medium,0,4,15
+2026-06-25 15:30:00,24,3,125,medium,0,4,15

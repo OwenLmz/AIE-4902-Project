@@ -18,9 +18,9 @@ class DashboardComponentsTest(unittest.TestCase):
 
     def test_build_area_summary_groups_by_floor_zone(self) -> None:
         summary = build_area_summary([
-            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "FREE"},
-            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "OCCUPIED"},
-            {"seat_id": "B01", "floor": "3", "zone": "B", "status": "FREE"},
+            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "free"},
+            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "occupied"},
+            {"seat_id": "B01", "floor": "3", "zone": "B", "status": "free"},
         ])
 
         self.assertEqual(len(summary), 2)
@@ -31,24 +31,24 @@ class DashboardComponentsTest(unittest.TestCase):
 
     def test_build_area_summary_counts_all_statuses(self) -> None:
         summary = build_area_summary([
-            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "FREE"},
-            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "OCCUPIED"},
-            {"seat_id": "A03", "floor": "3", "zone": "A", "status": "POSSIBLY_OCCUPIED"},
-            {"seat_id": "A04", "floor": "3", "zone": "A", "status": "SUSPICIOUS"},
-            {"seat_id": "A05", "floor": "3", "zone": "A", "status": "UNAVAILABLE"},
+            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "free"},
+            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "occupied"},
+            {"seat_id": "A03", "floor": "3", "zone": "A", "status": "occupied"},
+            {"seat_id": "A04", "floor": "3", "zone": "A", "status": "suspected"},
+            {"seat_id": "A05", "floor": "3", "zone": "A", "status": "unavailable"},
         ])[0]
 
         self.assertEqual(summary["total_seats"], 5)
         self.assertEqual(summary["free_seats"], 1)
-        self.assertEqual(summary["occupied_seats"], 1)
-        self.assertEqual(summary["temporarily_unavailable_seats"], 1)
+        self.assertEqual(summary["occupied_seats"], 2)
+        self.assertEqual(summary["temporarily_unavailable_seats"], 0)
         self.assertEqual(summary["suspicious_seats"], 1)
         self.assertEqual(summary["unavailable_seats"], 1)
 
     def test_available_ratio_excludes_unavailable(self) -> None:
         summary = build_area_summary([
-            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "FREE"},
-            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "UNAVAILABLE"},
+            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "free"},
+            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "unavailable"},
         ])[0]
 
         self.assertEqual(summary["available_ratio"], 1.0)
@@ -56,7 +56,7 @@ class DashboardComponentsTest(unittest.TestCase):
 
     def test_no_usable_capacity_does_not_divide_by_zero(self) -> None:
         summary = build_area_summary([
-            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "UNAVAILABLE"}
+            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "unavailable"}
         ])[0]
 
         self.assertIsNone(summary["available_ratio"])
@@ -64,24 +64,24 @@ class DashboardComponentsTest(unittest.TestCase):
 
     def test_no_free_seats_label(self) -> None:
         summary = build_area_summary([
-            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "OCCUPIED"}
+            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "occupied"}
         ])[0]
         self.assertEqual(summary["area_status_label"], "暂无空位")
 
     def test_area_status_labels(self) -> None:
         high = build_area_summary([
-            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "FREE"},
-            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "OCCUPIED"},
+            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "free"},
+            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "occupied"},
         ])[0]
         medium = build_area_summary([
-            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "FREE"},
-            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "OCCUPIED"},
-            {"seat_id": "A03", "floor": "3", "zone": "A", "status": "OCCUPIED"},
+            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "free"},
+            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "occupied"},
+            {"seat_id": "A03", "floor": "3", "zone": "A", "status": "occupied"},
         ])[0]
         low = build_area_summary([
-            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "FREE"},
+            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "free"},
             *[
-                {"seat_id": f"A{i:02d}", "floor": "3", "zone": "A", "status": "OCCUPIED"}
+                {"seat_id": f"A{i:02d}", "floor": "3", "zone": "A", "status": "occupied"}
                 for i in range(2, 12)
             ],
         ])[0]
@@ -92,13 +92,13 @@ class DashboardComponentsTest(unittest.TestCase):
 
     def test_area_recommendation_sorts_by_free_ratio_and_anomalies(self) -> None:
         summary = build_area_summary([
-            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "FREE"},
-            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "OCCUPIED"},
-            {"seat_id": "B01", "floor": "3", "zone": "B", "status": "FREE"},
-            {"seat_id": "B02", "floor": "3", "zone": "B", "status": "FREE"},
-            {"seat_id": "B03", "floor": "3", "zone": "B", "status": "SUSPICIOUS"},
-            {"seat_id": "C01", "floor": "3", "zone": "C", "status": "FREE"},
-            {"seat_id": "C02", "floor": "3", "zone": "C", "status": "FREE"},
+            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "free"},
+            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "occupied"},
+            {"seat_id": "B01", "floor": "3", "zone": "B", "status": "free"},
+            {"seat_id": "B02", "floor": "3", "zone": "B", "status": "free"},
+            {"seat_id": "B03", "floor": "3", "zone": "B", "status": "suspected"},
+            {"seat_id": "C01", "floor": "3", "zone": "C", "status": "free"},
+            {"seat_id": "C02", "floor": "3", "zone": "C", "status": "free"},
         ])
 
         self.assertEqual((summary[0]["floor"], summary[0]["zone"]), ("3", "C"))
@@ -108,7 +108,7 @@ class DashboardComponentsTest(unittest.TestCase):
 
     def test_area_without_free_seats_is_not_recommended(self) -> None:
         summary = build_area_summary([
-            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "OCCUPIED"},
+            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "occupied"},
         ])[0]
 
         self.assertEqual(summary["recommendation_label"], "不建议")
@@ -240,36 +240,36 @@ class DashboardComponentsTest(unittest.TestCase):
 
     def test_crowd_trend_summary_outputs_direction_labels(self) -> None:
         upward = build_crowd_trend_frame_for_range({
-            "current_people": 90,
+            "total_in_library": 90,
             "capacity": 100,
-            "crowd_level": "medium",
+            "crowding_level": "medium",
             "history": [
                 {"recorded_at": "2026-06-23 09:00:00", "total_in_library": 80},
                 {"recorded_at": "2026-06-23 10:00:00", "total_in_library": 90},
             ],
         }, "近3小时")
-        self.assertIn("整体上升", build_crowd_trend_summary({"current_people": 90, "capacity": 100, "crowd_level": "medium"}, upward))
+        self.assertIn("整体上升", build_crowd_trend_summary({"total_in_library": 90, "capacity": 100, "crowding_level": "medium"}, upward))
 
         downward = build_crowd_trend_frame_for_range({
-            "current_people": 70,
+            "total_in_library": 70,
             "capacity": 100,
             "history": [
                 {"recorded_at": "2026-06-23 09:00:00", "total_in_library": 90},
                 {"recorded_at": "2026-06-23 10:00:00", "total_in_library": 70},
             ],
         }, "今日")
-        self.assertIn("整体下降", build_crowd_trend_summary({"current_people": 70, "capacity": 100}, downward))
+        self.assertIn("整体下降", build_crowd_trend_summary({"total_in_library": 70, "capacity": 100}, downward))
 
         stable = build_crowd_trend_frame_for_range({
-            "current_people": 101,
+            "total_in_library": 101,
             "capacity": 100,
-            "crowd_level": "medium",
+            "crowding_level": "medium",
             "history": [
                 {"recorded_at": "2026-06-23 09:00:00", "total_in_library": 100},
                 {"recorded_at": "2026-06-23 10:00:00", "total_in_library": 101},
             ],
         }, "近3小时")
-        self.assertIn("整体稳定", build_crowd_trend_summary({"current_people": 101, "capacity": 100, "crowd_level": "medium"}, stable))
+        self.assertIn("整体稳定", build_crowd_trend_summary({"total_in_library": 101, "capacity": 100, "crowding_level": "medium"}, stable))
 
     def test_crowd_trend_summary_outputs_insufficient_data(self) -> None:
         trend = build_crowd_trend_frame_for_range({
@@ -341,97 +341,97 @@ class DashboardComponentsTest(unittest.TestCase):
 
         self.assertIsNone(note)
 
-    def test_admin_summary_counts_possibly_occupied(self) -> None:
+    def test_admin_summary_counts_unavailable_as_temporary_unavailable_metric(self) -> None:
         summary = build_admin_summary([
-            {"seat_id": "A01", "status": "POSSIBLY_OCCUPIED"},
-            {"seat_id": "A02", "status": "FREE"},
+            {"seat_id": "A01", "status": "unavailable"},
+            {"seat_id": "A02", "status": "free"},
         ])
         self.assertEqual(summary["possibly_occupied_count"], 1)
 
     def test_admin_summary_counts_suspicious(self) -> None:
         summary = build_admin_summary([
-            {"seat_id": "A01", "status": "SUSPICIOUS"},
-            {"seat_id": "A02", "status": "FREE"},
+            {"seat_id": "A01", "status": "suspected"},
+            {"seat_id": "A02", "status": "free"},
         ])
         self.assertEqual(summary["suspicious_count"], 1)
 
     def test_admin_occupancy_rate_formula(self) -> None:
         summary = build_admin_summary([
-            {"seat_id": "A01", "status": "OCCUPIED"},
-            {"seat_id": "A02", "status": "FREE"},
-            {"seat_id": "A03", "status": "UNAVAILABLE"},
+            {"seat_id": "A01", "status": "occupied"},
+            {"seat_id": "A02", "status": "free"},
+            {"seat_id": "A03", "status": "unavailable"},
         ])
         self.assertEqual(summary["occupancy_rate"], 0.5)
 
     def test_anomaly_statuses_do_not_count_as_occupied_numerator(self) -> None:
         summary = build_admin_summary([
-            {"seat_id": "A01", "status": "OCCUPIED"},
-            {"seat_id": "A02", "status": "POSSIBLY_OCCUPIED"},
-            {"seat_id": "A03", "status": "SUSPICIOUS"},
+            {"seat_id": "A01", "status": "occupied"},
+            {"seat_id": "A02", "status": "occupied"},
+            {"seat_id": "A03", "status": "suspected"},
         ])
-        self.assertEqual(summary["occupancy_rate"], 1 / 3)
+        self.assertEqual(summary["occupancy_rate"], 2 / 3)
 
     def test_admin_summary_no_usable_capacity(self) -> None:
         summary = build_admin_summary([
-            {"seat_id": "A01", "status": "UNAVAILABLE"},
+            {"seat_id": "A01", "status": "unavailable"},
         ])
         self.assertIsNone(summary["occupancy_rate"])
         self.assertEqual(summary["occupancy_rate_label"], "暂无数据")
 
     def test_admin_summary_busiest_anomaly_area(self) -> None:
         summary = build_admin_summary([
-            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "SUSPICIOUS"},
-            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "POSSIBLY_OCCUPIED"},
-            {"seat_id": "B01", "floor": "3", "zone": "B", "status": "SUSPICIOUS"},
+            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "suspected"},
+            {"seat_id": "A02", "floor": "3", "zone": "A", "status": "occupied"},
+            {"seat_id": "B01", "floor": "3", "zone": "B", "status": "suspected"},
         ])
-        self.assertEqual(summary["busiest_anomaly_area"], {"floor": "3", "zone": "A", "anomaly_count": 2})
+        self.assertEqual(summary["busiest_anomaly_area"], {"floor": "3", "zone": "A", "anomaly_count": 1})
 
     def test_admin_summary_no_anomaly_area(self) -> None:
         summary = build_admin_summary([
-            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "FREE"},
+            {"seat_id": "A01", "floor": "3", "zone": "A", "status": "free"},
         ])
         self.assertIsNone(summary["busiest_anomaly_area"])
         self.assertEqual(summary["busiest_anomaly_area_label"], "暂无异常区域")
 
     def test_anomaly_rows_only_include_anomaly_statuses(self) -> None:
         rows = build_anomaly_rows([
-            {"seat_id": "A01", "status": "FREE"},
-            {"seat_id": "A02", "status": "OCCUPIED"},
-            {"seat_id": "A03", "status": "POSSIBLY_OCCUPIED"},
-            {"seat_id": "A04", "status": "SUSPICIOUS"},
+            {"seat_id": "A01", "status": "free"},
+            {"seat_id": "A02", "status": "occupied"},
+            {"seat_id": "A03", "status": "occupied"},
+            {"seat_id": "A04", "status": "suspected"},
             {"seat_id": "A05", "status": "BROKEN"},
         ])
-        self.assertEqual([row["seat_id"] for row in rows], ["A04", "A03"])
+        self.assertEqual([row["seat_id"] for row in rows], ["A04"])
 
-    def test_suspicious_sorts_before_possibly_occupied(self) -> None:
+    def test_occupied_is_not_in_anomaly_rows(self) -> None:
         rows = build_anomaly_rows([
-            {"seat_id": "A01", "status": "POSSIBLY_OCCUPIED", "unattended_minutes": 999},
-            {"seat_id": "A02", "status": "SUSPICIOUS", "unattended_minutes": 1},
+            {"seat_id": "A01", "status": "occupied", "suspect_duration": 999},
+            {"seat_id": "A02", "status": "suspected", "suspect_duration": 1},
         ])
-        self.assertEqual([row["seat_id"] for row in rows], ["A02", "A01"])
+        self.assertEqual([row["seat_id"] for row in rows], ["A02"])
 
-    def test_anomaly_rows_sort_by_minutes_then_updated_at(self) -> None:
+    def test_anomaly_rows_sort_by_minutes_then_detected_at(self) -> None:
         rows = build_anomaly_rows([
-            {"seat_id": "A01", "status": "SUSPICIOUS", "unattended_minutes": 20, "updated_at": "2026-06-26T09:00:00"},
-            {"seat_id": "A02", "status": "SUSPICIOUS", "unattended_minutes": 30, "updated_at": "2026-06-26T08:00:00"},
-            {"seat_id": "A03", "status": "SUSPICIOUS", "unattended_minutes": 30, "updated_at": "2026-06-26T10:00:00"},
+            {"seat_id": "A01", "status": "suspected", "suspect_duration": 20, "detected_at": "2026-06-26T09:00:00"},
+            {"seat_id": "A02", "status": "suspected", "suspect_duration": 30, "detected_at": "2026-06-26T08:00:00"},
+            {"seat_id": "A03", "status": "suspected", "suspect_duration": 30, "detected_at": "2026-06-26T10:00:00"},
         ])
         self.assertEqual([row["seat_id"] for row in rows], ["A03", "A02", "A01"])
 
     def test_anomaly_rows_missing_fields_do_not_crash(self) -> None:
         rows = build_anomaly_rows([
-            {"seat_id": "A01", "status": "SUSPICIOUS"},
+            {"seat_id": "A01", "status": "suspected"},
         ])
         self.assertEqual(rows[0]["has_person"], None)
         self.assertEqual(rows[0]["has_object"], None)
-        self.assertEqual(rows[0]["unattended_minutes"], None)
+        self.assertEqual(rows[0]["suspect_duration"], None)
 
-    def test_missing_polygon_does_not_affect_anomaly_row_generation(self) -> None:
+    def test_missing_roi_does_not_affect_anomaly_row_generation(self) -> None:
         rows = build_anomaly_rows([
-            {"seat_id": "A01", "status": "SUSPICIOUS"},
+            {"seat_id": "A01", "status": "suspected"},
         ])
         self.assertEqual(rows[0]["seat_id"], "A01")
-        self.assertIsNone(rows[0]["polygon"])
+        self.assertIsNone(rows[0]["roi_x1"])
 
     def test_empty_seats_returns_empty_admin_summary_and_rows(self) -> None:
         summary = build_admin_summary([])
@@ -447,25 +447,28 @@ class DashboardComponentsTest(unittest.TestCase):
             "floor": "3",
             "zone": "A",
             "camera_id": "CAM-1",
-            "status": "SUSPICIOUS",
-            "polygon": [[0, 0], [10, 0], [10, 10]],
+            "status": "suspected",
+            "roi_x1": 0,
+            "roi_y1": 0,
+            "roi_x2": 10,
+            "roi_y2": 10,
         }
         group = _same_layout_group([
             selected,
-            {"seat_id": "A02", "floor": "3", "zone": "A", "camera_id": "CAM-1", "polygon": [[20, 0], [30, 0], [30, 10]]},
-            {"seat_id": "A03", "floor": "3", "zone": "A", "camera_id": "CAM-2", "polygon": [[20, 0], [30, 0], [30, 10]]},
+            {"seat_id": "A02", "floor": "3", "zone": "A", "camera_id": "CAM-1", "roi_x1": 20, "roi_y1": 0, "roi_x2": 30, "roi_y2": 10},
+            {"seat_id": "A03", "floor": "3", "zone": "A", "camera_id": "CAM-2", "roi_x1": 20, "roi_y1": 0, "roi_x2": 30, "roi_y2": 10},
         ], selected)
         self.assertEqual([seat["seat_id"] for seat in group], ["A01", "A02"])
 
     def test_selected_seat_id_passes_to_layout_highlight(self) -> None:
         svg = build_svg_seat_layout([
-            {"seat_id": "A01", "status": "SUSPICIOUS", "polygon": [[0, 0], [10, 0], [10, 10]]}
+            {"seat_id": "A01", "status": "suspected", "roi_x1": 0, "roi_y1": 0, "roi_x2": 10, "roi_y2": 10}
         ], selected_seat_id="A01")
         self.assertIn("seat-selected", svg)
 
     def test_no_admin_action_fields_are_generated(self) -> None:
         rows = build_anomaly_rows([
-            {"seat_id": "A01", "status": "SUSPICIOUS"},
+            {"seat_id": "A01", "status": "suspected"},
         ])
         forbidden_keys = ["processing" + "_status", "action" + "_result", "admin" + "_note"]
         for key in forbidden_keys:
@@ -477,9 +480,9 @@ class DashboardComponentsTest(unittest.TestCase):
                 "seat_id": "A01",
                 "floor": "3",
                 "zone": "A",
-                "status": "SUSPICIOUS",
-                "unattended_minutes": 30,
-                "updated_at": "2026-06-26T10:00:00",
+                "status": "suspected",
+                "suspect_duration": 30,
+                "detected_at": "2026-06-26T10:00:00",
                 "has_person": False,
                 "has_object": True,
                 **{"processing" + "_status": "fake"},
@@ -487,7 +490,7 @@ class DashboardComponentsTest(unittest.TestCase):
         ])
         self.assertEqual(
             set(rows[0]),
-            {"seat_id", "floor", "zone", "status", "unattended_minutes", "updated_at"},
+            {"seat_id", "floor", "zone", "status", "suspect_duration", "detected_at"},
         )
 
 

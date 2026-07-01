@@ -52,8 +52,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "summary.people_capacity": {"zh": "馆内人数 / 容量", "en": "People / Capacity"},
     "summary.people_help": {"zh": "来自闸机模拟数据", "en": "From mock gate data"},
     "summary.free_seats": {"zh": "全馆空闲座位", "en": "Free Seats"},
-    "summary.free_help": {"zh": "仅统计 FREE 状态", "en": "FREE seats only"},
-    "summary.crowd_level": {"zh": "当前拥挤等级", "en": "Crowd Level"},
+    "summary.free_help": {"zh": "仅统计空闲座位", "en": "Free seats only"},
+    "summary.crowding_level": {"zh": "当前拥挤等级", "en": "Crowding Level"},
     "summary.trend": {"zh": "趋势判断", "en": "Trend"},
     "summary.forecast_unavailable": {"zh": "预测数据暂不可用", "en": "Prediction unavailable"},
     "summary.forecast_help": {"zh": "预测模型暂未启用", "en": "Forecast model not enabled"},
@@ -80,9 +80,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "map.group": {"zh": "选择摄像头视角", "en": "Camera view"},
     "map.seat": {"zh": "选择座位（空闲座位优先）", "en": "Choose seat (free seats first)"},
     "map.current_or_recommended": {"zh": "推荐 / 选中座位", "en": "Recommended / Selected Seat"},
+    "map.selected": {"zh": "选中座位", "en": "Selected Seat"},
     "map.recommended": {"zh": "推荐座位", "en": "Recommended Seat"},
-    "map.warning_invalid_polygon": {"zh": "部分座位布局坐标不可用，已跳过对应座位。", "en": "Some seat polygons are invalid and were skipped."},
+    "map.warning_invalid_layout": {"zh": "部分座位 ROI / 布局坐标不可用，已跳过对应座位。", "en": "Some seat ROI/layout coordinates are invalid and were skipped."},
     "seat.id": {"zh": "座位编号", "en": "Seat ID"},
+    "seat.location": {"zh": "位置", "en": "Location"},
     "seat.floor": {"zh": "楼层", "en": "Floor"},
     "seat.zone": {"zh": "区域", "en": "Zone"},
     "seat.camera": {"zh": "摄像头视角", "en": "Camera View"},
@@ -103,7 +105,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "trend.data_range": {"zh": "数据范围", "en": "Data range"},
     "trend.no_capacity": {"zh": "容量数据缺失，暂不显示容量参考线", "en": "Capacity is missing, so the capacity line is hidden."},
     "trend.no_forecast": {"zh": "未来 30 分钟预测数据暂不可用，当前仅展示历史人流变化。", "en": "30-minute forecast is unavailable; only historical crowd changes are shown."},
-    "trend.current_people": {"zh": "当前人数", "en": "Current"},
+    "trend.total_in_library": {"zh": "当前人数", "en": "Current"},
     "trend.capacity": {"zh": "容量", "en": "Capacity"},
     "trend.ratio": {"zh": "占比", "en": "Ratio"},
     "trend.no_history": {"zh": "暂无人流历史数据", "en": "No crowd history data"},
@@ -119,42 +121,40 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "admin.location": {"zh": "异常定位", "en": "Anomaly Location"},
     "admin.detail": {"zh": "异常详情", "en": "Anomaly Details"},
     "admin.same_view": {"zh": "当前只显示同一楼层、区域和摄像头视角下的座位，不混合不同坐标系。", "en": "Only seats in the same floor, zone, and camera view are shown."},
-    "admin.no_polygon": {"zh": "该座位暂无布局坐标，无法在座位图中定位", "en": "This seat has no polygon and cannot be located on the map."},
+    "admin.no_layout_coordinates": {"zh": "该座位暂无 ROI / 布局坐标，无法在座位图中定位", "en": "This seat has no ROI/layout coordinates and cannot be located on the map."},
     "admin.choose_seat": {"zh": "请选择异常座位", "en": "Please select an abnormal seat"},
 }
 
 
 STATUS_LABELS = {
     "zh": {
-        "FREE": "空闲",
-        "OCCUPIED": "使用中",
-        "POSSIBLY_OCCUPIED": "暂不可用",
-        "SUSPICIOUS": "疑似占座",
-        "UNAVAILABLE": "不可用",
-        "UNKNOWN": "未知状态",
+        "free": "空闲",
+        "occupied": "使用中",
+        "suspected": "疑似占座",
+        "unavailable": "不可用",
+        "unknown": "未知状态",
     },
     "en": {
-        "FREE": "Free",
-        "OCCUPIED": "Occupied",
-        "POSSIBLY_OCCUPIED": "Temporarily unavailable",
-        "SUSPICIOUS": "Suspicious",
-        "UNAVAILABLE": "Unavailable",
-        "UNKNOWN": "Unknown",
+        "free": "Free",
+        "occupied": "Occupied",
+        "suspected": "Suspicious",
+        "unavailable": "Unavailable",
+        "unknown": "Unknown",
     },
 }
 
 
 STUDENT_STATUS_LABELS = {
     "zh": {
-        "SUSPICIOUS": "疑似占座（待确认）",
+        "suspected": "疑似占座（待确认）",
     },
     "en": {
-        "SUSPICIOUS": "Suspicious (pending check)",
+        "suspected": "Suspicious (pending check)",
     },
 }
 
 
-CROWD_LEVEL_LABELS = {
+CROWDING_LEVEL_LABELS = {
     "zh": {
         "LOW": "低",
         "MEDIUM": "中等",
@@ -198,13 +198,17 @@ def t(key: str, language: str | None = None, **kwargs: Any) -> str:
 
 def status_text(status: object, audience: str = "student", language: str | None = None) -> str:
     lang = language or current_language()
-    normalized = str(status or "").strip().upper() or "UNKNOWN"
+    normalized = str(status or "").strip().lower() or "unknown"
+    normalized = {
+        "suspicious": "suspected",
+        "possibly_occupied": "occupied",
+    }.get(normalized, normalized)
     labels = dict(STATUS_LABELS.get(lang, STATUS_LABELS[DEFAULT_LANGUAGE]))
     if audience == "student":
         labels.update(STUDENT_STATUS_LABELS.get(lang, {}))
-    return labels.get(normalized, labels["UNKNOWN"])
+    return labels.get(normalized, labels["unknown"])
 
 
-def crowd_level_text(level: object, language: str | None = None) -> str:
+def crowding_level_text(level: object, language: str | None = None) -> str:
     lang = language or current_language()
-    return CROWD_LEVEL_LABELS.get(lang, CROWD_LEVEL_LABELS[DEFAULT_LANGUAGE]).get(str(level or "").upper(), t("empty.no_crowd_data", lang))
+    return CROWDING_LEVEL_LABELS.get(lang, CROWDING_LEVEL_LABELS[DEFAULT_LANGUAGE]).get(str(level or "").upper(), t("empty.no_crowd_data", lang))

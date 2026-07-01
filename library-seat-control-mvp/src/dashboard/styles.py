@@ -1,73 +1,78 @@
 from __future__ import annotations
 
 KNOWN_STATUSES = {
-    "FREE",
-    "OCCUPIED",
-    "POSSIBLY_OCCUPIED",
-    "SUSPICIOUS",
-    "UNAVAILABLE",
+    "free",
+    "occupied",
+    "suspected",
+    "unavailable",
 }
 
 STUDENT_STATUS_LABELS = {
-    "FREE": "空闲",
-    "OCCUPIED": "使用中",
-    "POSSIBLY_OCCUPIED": "暂不可用",
-    "SUSPICIOUS": "疑似占座（待确认）",
-    "UNAVAILABLE": "不可用",
+    "free": "空闲",
+    "occupied": "使用中",
+    "suspected": "疑似占座（待确认）",
+    "unavailable": "不可用",
 }
 
 ADMIN_STATUS_LABELS = {
-    "FREE": "空闲",
-    "OCCUPIED": "使用中",
-    "POSSIBLY_OCCUPIED": "暂不可用",
-    "SUSPICIOUS": "疑似占座",
-    "UNAVAILABLE": "不可用",
+    "free": "空闲",
+    "occupied": "使用中",
+    "suspected": "疑似占座",
+    "unavailable": "不可用",
 }
 
 UNKNOWN_STATUS_LABEL = "未知状态"
 
 STATUS_COLORS = {
-    "FREE": "#2e7d32",
-    "OCCUPIED": "#1565c0",
-    "POSSIBLY_OCCUPIED": "#ef6c00",
-    "SUSPICIOUS": "#c62828",
-    "UNAVAILABLE": "#757575",
+    "free": "#2e7d32",
+    "occupied": "#1565c0",
+    "suspected": "#c62828",
+    "unavailable": "#757575",
     "UNKNOWN": "#616161",
 }
 
-CROWD_LEVEL_LABELS = {
-    "LOW": "低",
-    "MEDIUM": "中等",
-    "HIGH": "拥挤",
-    "FULL": "接近满载",
+CROWDING_LEVEL_LABELS = {
+    "low": "低",
+    "medium": "中等",
+    "high": "拥挤",
+    "full": "接近满载",
 }
 
-CROWD_LEVEL_COLORS = {
-    "LOW": "#2e7d32",
-    "MEDIUM": "#f9a825",
-    "HIGH": "#ef6c00",
-    "FULL": "#c62828",
+CROWDING_LEVEL_COLORS = {
+    "low": "#2e7d32",
+    "medium": "#f9a825",
+    "high": "#ef6c00",
+    "full": "#c62828",
 }
 
 
 def status_label(status: str | None, audience: str = "student") -> str:
     labels = ADMIN_STATUS_LABELS if audience == "admin" else STUDENT_STATUS_LABELS
-    return labels.get(str(status or "").upper(), UNKNOWN_STATUS_LABEL)
+    return labels.get(normalize_status(status)[0], UNKNOWN_STATUS_LABEL)
 
 
 def normalize_status(status: object) -> tuple[str, str | None]:
-    normalized = str(status or "").strip().upper()
-    if normalized in KNOWN_STATUSES:
-        return normalized, None
-    return normalized or "UNKNOWN", "unknown_status"
+    raw = str(status or "").strip()
+    normalized = raw.lower()
+    legacy_map = {
+        "free": "free",
+        "occupied": "occupied",
+        "possibly_occupied": "occupied",
+        "suspicious": "suspected",
+        "suspected": "suspected",
+        "unavailable": "unavailable",
+    }
+    mapped = legacy_map.get(normalized)
+    if mapped in KNOWN_STATUSES:
+        return mapped, None
+    return normalized or "unknown", "unknown_status"
 
 
-def crowd_level_from_ratio(ratio: float) -> str:
+def crowding_level_from_ratio(ratio: float) -> str:
     if ratio < 0.50:
-        return "LOW"
+        return "low"
     if ratio < 0.75:
-        return "MEDIUM"
+        return "medium"
     if ratio < 0.90:
-        return "HIGH"
-    return "FULL"
-
+        return "high"
+    return "full"

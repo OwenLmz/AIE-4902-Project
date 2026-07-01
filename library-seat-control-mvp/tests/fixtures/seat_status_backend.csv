@@ -1,0 +1,5 @@
+seat_id,floor,zone,detected_at,has_person,has_object,status,suspect_duration
+F3-A01,3,A,2026-06-25 15:00:00,0,1,suspected,18
+F3-A01,3,A,2026-06-25 15:30:00,0,1,suspected,28
+F3-A02,3,A,2026-06-25 15:30:00,1,1,occupied,0
+F3-A03,3,A,2026-06-25 15:30:00,0,0,free,0
